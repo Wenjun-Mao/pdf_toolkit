@@ -30,12 +30,12 @@ uv run pdfkit-web
 4. Start the stack:
 
 ```powershell
-docker compose up --build
+docker compose up -d --build
 ```
 
 Services:
 
-- `web` serves the FastAPI app on port `8000`
+- `web` serves the FastAPI app on port `8100`
 - `worker` runs RQ background jobs
 - `redis` backs the queue
 - The Compose project name is `pdf-toolkit`
