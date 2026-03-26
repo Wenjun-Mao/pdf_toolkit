@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ app_name }} Login</title>
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="login-body">
+    <main class="login-shell">
+        <section class="hero-card">
+            <p class="eyebrow">Single-user PDF workstation</p>
+            <h1>PDF Kit</h1>
+            <p class="lede">Merge, split, extract, and tune scanned pages without maintaining a pile of throwaway scripts.</p>
+        </section>
+        <section class="login-card">
+            <h2>Sign In</h2>
+            {% if error_message %}
+                <div class="notice error">{{ error_message }}</div>
+            {% endif %}
+            <form method="post" class="stacked-form">
+                <label>
+                    Username
+                    <input type="text" name="username" autocomplete="username" required>
+                </label>
+                <label>
+                    Password
+                    <input type="password" name="password" autocomplete="current-password" required>
+                </label>
+                <button class="primary-button" type="submit">Enter PDF Kit</button>
+            </form>
+        </section>
+    </main>
+</body>
+</html>

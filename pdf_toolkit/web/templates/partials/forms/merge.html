@@ -1,0 +1,13 @@
+<form
+    class="stacked-form"
+    hx-post="/tools/merge/submit"
+    hx-target="#job-panel"
+    hx-swap="innerHTML"
+    hx-encoding="multipart/form-data"
+>
+    <label>
+        PDF Files
+        <input type="file" name="files" accept="application/pdf" multiple required>
+    </label>
+    <button class="primary-button" type="submit">Queue Merge</button>
+</form>

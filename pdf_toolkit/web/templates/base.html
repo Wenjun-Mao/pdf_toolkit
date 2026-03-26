@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ app_name }}</title>
+    <link rel="stylesheet" href="/static/app.css">
+    <script defer src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
+</head>
+<body>
+    <div class="page-shell">
+        <header class="topbar">
+            <a class="brand" href="/">PDF Kit</a>
+            <nav class="topnav">
+                <a href="/tools/merge">Merge</a>
+                <a href="/tools/split">Split</a>
+                <a href="/tools/extract-pages">Extract Pages</a>
+                <a href="/tools/extract-images">Extract Images</a>
+                <a href="/tools/scan-cleanup">Scan Cleanup</a>
+            </nav>
+            {% if require_login %}
+            <form action="/logout" method="post">
+                <button class="ghost-button" type="submit">Logout</button>
+            </form>
+            {% endif %}
+        </header>
+        <main class="main-shell">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</body>
+</html>

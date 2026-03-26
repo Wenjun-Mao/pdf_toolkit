@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="panel panel-accent">
+    <p class="eyebrow">{{ tool_id.replace("-", " ").title() }}</p>
+    <h1>{{ tool.title }}</h1>
+    <p class="lede">{{ tool.description }}</p>
+</section>
+
+<section class="tool-layout">
+    <article class="panel">
+        {% include tool.form_template %}
+    </article>
+    <aside class="panel panel-side">
+        <h2>Notes</h2>
+        <ul class="flat-list">
+            <li>`Split` supports explicit groups like <code>1-4;5-8;9-12</code> or automatic chunking with <code>every N</code>.</li>
+            <li>`Extract Pages` uses 1-based inclusive ranges like <code>1,3-5,8-10</code>.</li>
+            <li>`Scan Cleanup` first analyzes the PDF and generates previews, then lets you launch the cleanup pass with defaults and optional page overrides.</li>
+        </ul>
+    </aside>
+</section>
+
+<section class="panel">
+    <div class="section-header">
+        <h2>Job Output</h2>
+    </div>
+    <div id="job-panel">
+        <p class="muted">Submit a task to start processing.</p>
+    </div>
+</section>
+{% endblock %}

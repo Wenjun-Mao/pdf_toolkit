@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="panel">
+    <a class="mini-link" href="/">Back to home</a>
+    <h1>{{ job.display_name }}</h1>
+    {% include "partials/job_card.html" %}
+</section>
+
+{% if job.awaiting_settings and job.analysis %}
+    <section class="panel" x-data="{ showPreviews: true }">
+        <div class="section-header">
+            <div>
+                <p class="eyebrow">Scan Cleanup Tuning</p>
+                <h2>Review analysis and launch cleanup</h2>
+            </div>
+            <button class="ghost-button" type="button" x-on:click="showPreviews = !showPreviews">
+                <span x-text="showPreviews ? 'Hide previews' : 'Show previews'"></span>
+            </button>
+        </div>
+        <div id="job-launch-panel">
+            {% include "partials/scan_settings_form.html" %}
+        </div>
+        <div class="preview-grid" x-show="showPreviews">
+            {% for page in job.analysis.pages %}
+                <article class="preview-card">
+                    <img src="{{ page.preview_url }}" alt="Preview for page {{ page.page_number }}">
+                    <div class="preview-meta">
+                        <strong>Page {{ page.page_number }}</strong>
+                        <span>DPI {{ "%.0f"|format(page.effective_dpi or 0) }}</span>
+                        <span>{% if page.has_text %}OCR present{% else %}No OCR{% endif %}</span>
+                        <span>{% if page.layered_images %}Layered images{% else %}Single raster{% endif %}</span>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    </section>
+{% endif %}
+{% endblock %}

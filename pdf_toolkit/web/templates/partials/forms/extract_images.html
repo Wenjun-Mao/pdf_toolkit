@@ -1,0 +1,13 @@
+<form
+    class="stacked-form"
+    hx-post="/tools/extract-images/submit"
+    hx-target="#job-panel"
+    hx-swap="innerHTML"
+    hx-encoding="multipart/form-data"
+>
+    <label>
+        Source PDF
+        <input type="file" name="file" accept="application/pdf" required>
+    </label>
+    <button class="primary-button" type="submit">Queue Image Export</button>
+</form>

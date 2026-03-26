@@ -1,0 +1,56 @@
+name: pdf-toolkit
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uv run pdfkit-web
+    environment:
+      PDFKIT_REDIS_URL: redis://redis:6379/0
+      PDFKIT_DATABASE_URL: sqlite:///data/pdfkit.db
+      PDFKIT_HOST: 0.0.0.0
+      PDFKIT_PORT: 8000
+    ports:
+      - "8100:8000"
+    depends_on:
+      - redis
+    volumes:
+      - pdfkit_data:/app/data
+    secrets:
+      - pdfkit_admin_password
+      - pdfkit_require_login
+      - pdfkit_session_secret
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uv run pdfkit-worker
+    environment:
+      PDFKIT_REDIS_URL: redis://redis:6379/0
+      PDFKIT_DATABASE_URL: sqlite:///data/pdfkit.db
+    depends_on:
+      - redis
+    volumes:
+      - pdfkit_data:/app/data
+    secrets:
+      - pdfkit_admin_password
+      - pdfkit_require_login
+      - pdfkit_session_secret
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  pdfkit_data:
+
+secrets:
+  pdfkit_admin_password:
+    file: ./secrets/admin_password.txt
+  pdfkit_require_login:
+    file: ./secrets/require_login.txt
+  pdfkit_session_secret:
+    file: ./secrets/session_secret.txt

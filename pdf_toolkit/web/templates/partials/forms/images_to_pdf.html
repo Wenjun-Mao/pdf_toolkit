@@ -1,0 +1,40 @@
+<form
+    class="stacked-form"
+    hx-post="/tools/images-to-pdf/submit"
+    hx-target="#job-panel"
+    hx-swap="innerHTML"
+    hx-encoding="multipart/form-data"
+>
+    <label>
+        Image Files
+        <input type="file" name="files" accept="image/*" multiple required>
+    </label>
+    <label>
+        Fallback DPI
+        <input type="number" name="fallback_dpi" min="72" max="600" step="1" value="300">
+    </label>
+    <label>
+        JPEG Quality
+        <input type="number" name="jpeg_quality" min="70" max="100" step="1" value="95">
+    </label>
+    <label>
+        Page Size
+        <select name="page_size">
+            <option value="original" selected>Original</option>
+            <option value="a4">A4</option>
+            <option value="letter">Letter</option>
+        </select>
+    </label>
+    <label>
+        Margin (mm)
+        <input type="number" name="margin_mm" min="0" max="50" step="0.5" value="0">
+    </label>
+    <label>
+        Placement
+        <select name="placement">
+            <option value="fit" selected>Fit</option>
+            <option value="fill">Fill</option>
+        </select>
+    </label>
+    <button class="primary-button" type="submit">Queue Image PDF</button>
+</form>

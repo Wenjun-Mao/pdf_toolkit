@@ -1,0 +1,21 @@
+<form
+    class="stacked-form"
+    hx-post="/tools/split/submit"
+    hx-target="#job-panel"
+    hx-swap="innerHTML"
+    hx-encoding="multipart/form-data"
+>
+    <label>
+        Source PDF
+        <input type="file" name="file" accept="application/pdf" required>
+    </label>
+    <label>
+        Split Ranges
+        <input type="text" name="range_spec" placeholder="1-4;5-8;9-12">
+    </label>
+    <label>
+        Every N Pages
+        <input type="number" name="every_n" min="1" step="1" placeholder="10">
+    </label>
+    <button class="primary-button" type="submit">Queue Split</button>
+</form>

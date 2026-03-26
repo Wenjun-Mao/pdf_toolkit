@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero-panel">
+    <div>
+        <p class="eyebrow">Paperwork triage</p>
+        <h1>Practical PDF tooling, one queue away.</h1>
+        <p class="lede">Core PDF operations stay simple. Scanned-book cleanup gets its own preview-first workflow so you can preserve OCR and still optimize for print.</p>
+    </div>
+</section>
+
+<section class="tool-grid">
+    {% for tool_id, tool in tools.items() %}
+        <a class="tool-card" href="/tools/{{ tool_id }}">
+            <p class="tool-kicker">{{ tool_id.replace("-", " ").title() }}</p>
+            <h2>{{ tool.title }}</h2>
+            <p>{{ tool.description }}</p>
+        </a>
+    {% endfor %}
+</section>
+
+<section class="panel">
+    <div class="section-header">
+        <h2>Recent Jobs</h2>
+    </div>
+    {% if jobs %}
+        <div class="job-stack">
+            {% for job in jobs %}
+                {% include "partials/job_card.html" %}
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">No jobs yet.</p>
+    {% endif %}
+</section>
+{% endblock %}
