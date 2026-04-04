@@ -3,8 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import fitz
+from PIL import Image, ImageDraw
 
-from pdf_toolkit.pdf_ops import extract_embedded_images, extract_pages, images_to_pdf, merge_pdfs, split_pdf
+from pdf_toolkit.pdf_ops import extract_embedded_images, extract_pages, id_halves_to_pdf, images_to_pdf, merge_pdfs, split_pdf
 
 
 def test_merge_extract_and_split_round_trip(tmp_path: Path, sample_merge_pdfs: list[Path]) -> None:
@@ -109,3 +110,32 @@ def test_images_to_pdf_letter_fill_crops_without_distortion(tmp_path: Path, samp
         rendered = page.get_pixmap(alpha=False)
         assert rendered.pixel(10, 10) == (255, 255, 255)
         assert rendered.pixel(rendered.width // 2, rendered.height // 2) != (255, 255, 255)
+
+
+def test_id_halves_to_pdf_combines_requested_regions(tmp_path: Path) -> None:
+    top_source = tmp_path / "id-front.png"
+    bottom_source = tmp_path / "id-back.png"
+
+    with Image.new("RGB", (120, 80), color=(0, 0, 0)) as top_image:
+        top_draw = ImageDraw.Draw(top_image)
+        top_draw.rectangle((0, 0, 119, 39), fill=(255, 0, 0))
+        top_draw.rectangle((0, 40, 119, 79), fill=(0, 0, 255))
+        top_image.save(top_source, format="PNG")
+
+    with Image.new("RGB", (120, 80), color=(0, 0, 0)) as bottom_image:
+        bottom_draw = ImageDraw.Draw(bottom_image)
+        bottom_draw.rectangle((0, 0, 119, 39), fill=(0, 255, 0))
+        bottom_draw.rectangle((0, 40, 119, 79), fill=(255, 255, 0))
+        bottom_image.save(bottom_source, format="PNG")
+
+    output_path = tmp_path / "id-halves.pdf"
+    id_halves_to_pdf(top_source, bottom_source, output_path, fallback_dpi=72)
+
+    with fitz.open(output_path) as output_doc:
+        assert output_doc.page_count == 1
+        rendered = output_doc[0].get_pixmap(alpha=False)
+        upper_pixel = rendered.pixel(rendered.width // 2, rendered.height // 4)
+        lower_pixel = rendered.pixel(rendered.width // 2, (rendered.height * 3) // 4)
+
+        assert upper_pixel[0] > 220 and upper_pixel[1] < 60 and upper_pixel[2] < 60
+        assert lower_pixel[0] > 220 and lower_pixel[1] > 220 and lower_pixel[2] < 80

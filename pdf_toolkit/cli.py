@@ -10,6 +10,7 @@ from .pdf_ops import (
     clean_scanned_pdf,
     extract_embedded_images,
     extract_pages,
+    id_halves_to_pdf,
     images_to_pdf,
     merge_pdfs,
     split_pdf,
@@ -48,6 +49,16 @@ def build_parser() -> argparse.ArgumentParser:
     images_to_pdf_parser.add_argument("--page-size", type=str, default="original", choices=["original", "a4", "letter"])
     images_to_pdf_parser.add_argument("--margin-mm", type=float, default=0.0)
     images_to_pdf_parser.add_argument("--placement", type=str, default="fit", choices=["fit", "fill"])
+
+    id_halves_parser = subparsers.add_parser(
+        "id-halves-to-pdf",
+        help="Build one PDF page from the top half of image one and bottom half of image two.",
+    )
+    id_halves_parser.add_argument("top_image", type=Path)
+    id_halves_parser.add_argument("bottom_image", type=Path)
+    id_halves_parser.add_argument("output", type=Path)
+    id_halves_parser.add_argument("--fallback-dpi", type=int, default=300)
+    id_halves_parser.add_argument("--jpeg-quality", type=int, default=95)
 
     analyze_parser = subparsers.add_parser("scan-analyze", help="Analyze a scanned PDF and generate previews.")
     analyze_parser.add_argument("input", type=Path)
@@ -97,6 +108,17 @@ def main() -> None:
             page_size=args.page_size,
             margin_mm=args.margin_mm,
             placement=args.placement,
+        )
+        print(args.output.resolve())
+        return
+
+    if args.command == "id-halves-to-pdf":
+        id_halves_to_pdf(
+            args.top_image,
+            args.bottom_image,
+            args.output,
+            fallback_dpi=args.fallback_dpi,
+            jpeg_quality=args.jpeg_quality,
         )
         print(args.output.resolve())
         return

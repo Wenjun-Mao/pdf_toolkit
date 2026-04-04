@@ -14,6 +14,7 @@ from .pdf_ops import (
     clean_scanned_pdf,
     extract_embedded_images,
     extract_pages,
+    id_halves_to_pdf,
     images_to_pdf,
     merge_pdfs,
     split_pdf,
@@ -107,6 +108,11 @@ def enqueue_images_to_pdf(job_id: str, settings: Settings | None = None):
     return dispatch_job(run_images_to_pdf_job, job_id, settings=active_settings)
 
 
+def enqueue_id_halves_to_pdf(job_id: str, settings: Settings | None = None):
+    active_settings = settings or get_settings()
+    return dispatch_job(run_id_halves_to_pdf_job, job_id, settings=active_settings)
+
+
 def enqueue_scan_analysis(job_id: str, settings: Settings | None = None):
     active_settings = settings or get_settings()
     return dispatch_job(run_scan_analysis_job, job_id, settings=active_settings)
@@ -135,6 +141,10 @@ def run_extract_images_job(job_id: str) -> str:
 
 def run_images_to_pdf_job(job_id: str) -> str:
     return _run_job(job_id, JobStatus.PROCESSING, _images_to_pdf_job_impl)
+
+
+def run_id_halves_to_pdf_job(job_id: str) -> str:
+    return _run_job(job_id, JobStatus.PROCESSING, _id_halves_to_pdf_job_impl)
 
 
 def run_scan_analysis_job(job_id: str) -> str:
@@ -234,6 +244,21 @@ def _images_to_pdf_job_impl(job: Job) -> Path:
         page_size=str(job.params_json.get("page_size", "original")),
         margin_mm=float(job.params_json.get("margin_mm", 0.0)),
         placement=str(job.params_json.get("placement", "fit")),
+    )
+    return output_path
+
+
+def _id_halves_to_pdf_job_impl(job: Job) -> Path:
+    if len(job.input_paths) != 2:
+        raise ValueError("ID halves conversion requires exactly two image inputs.")
+
+    output_path = build_result_path(job.id, "id-halves.pdf")
+    id_halves_to_pdf(
+        Path(job.input_paths[0]),
+        Path(job.input_paths[1]),
+        output_path,
+        fallback_dpi=int(job.params_json.get("fallback_dpi", 300)),
+        jpeg_quality=int(job.params_json.get("jpeg_quality", 95)),
     )
     return output_path
 

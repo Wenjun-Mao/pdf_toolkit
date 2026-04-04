@@ -14,6 +14,7 @@ from ..jobs import (
     create_job,
     enqueue_extract_images,
     enqueue_extract_pages,
+    enqueue_id_halves_to_pdf,
     enqueue_images_to_pdf,
     enqueue_merge,
     enqueue_scan_analysis,
@@ -53,6 +54,11 @@ TOOL_REGISTRY = {
         "title": "Images to PDF",
         "description": "Combine multiple images into a single PDF with better sizing and encoding defaults.",
         "form_template": "partials/forms/images_to_pdf.html",
+    },
+    "id-halves-to-pdf": {
+        "title": "ID Halves to PDF",
+        "description": "Take the top half of one image and the bottom half of another, then output one PDF page.",
+        "form_template": "partials/forms/id_halves_to_pdf.html",
     },
     "scan-cleanup": {
         "title": "Scan Cleanup",
@@ -272,6 +278,35 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return _render_job_card(request, templates, job.id, active_settings)
         except Exception as exc:
             logger.exception("Images-to-PDF submission failed")
+            return _render_notice(request, templates, str(exc), status_code=400)
+
+    @app.post("/tools/id-halves-to-pdf/submit", response_class=HTMLResponse)
+    async def id_halves_to_pdf_submit(
+        request: Request,
+        top_image: UploadFile = File(...),
+        bottom_image: UploadFile = File(...),
+        fallback_dpi: int = Form(300),
+        jpeg_quality: int = Form(95),
+    ):
+        try:
+            job = create_job(
+                "id-halves-to-pdf",
+                "ID Halves to PDF",
+                [],
+                params_json={
+                    "fallback_dpi": fallback_dpi,
+                    "jpeg_quality": jpeg_quality,
+                },
+                settings=active_settings,
+            )
+            stored_paths = await persist_uploads(job.id, [top_image, bottom_image], active_settings)
+            if len(stored_paths) != 2:
+                raise ValueError("Select a top image and a bottom image.")
+            update_job_fields(job.id, active_settings, input_paths=[str(path) for path in stored_paths])
+            enqueue_id_halves_to_pdf(job.id, active_settings)
+            return _render_job_card(request, templates, job.id, active_settings)
+        except Exception as exc:
+            logger.exception("ID halves submission failed")
             return _render_notice(request, templates, str(exc), status_code=400)
 
     @app.post("/tools/scan-cleanup/submit", response_class=HTMLResponse)

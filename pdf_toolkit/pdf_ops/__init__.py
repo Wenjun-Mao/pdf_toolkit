@@ -1,4 +1,5 @@
 from .extract_images import extract_embedded_images
+from .id_halves_to_pdf import id_halves_to_pdf
 from .images_to_pdf import images_to_pdf
 from .merge import merge_pdfs
 from .ranges import parse_page_range_spec, parse_split_range_groups
@@ -22,6 +23,7 @@ __all__ = [
     "extract_embedded_images",
     "extract_pages",
     "generate_before_after_contact_sheet",
+    "id_halves_to_pdf",
     "images_to_pdf",
     "merge_pdfs",
     "parse_page_range_spec",

@@ -1,0 +1,25 @@
+<form
+    class="stacked-form"
+    hx-post="/tools/id-halves-to-pdf/submit"
+    hx-target="#job-panel"
+    hx-swap="innerHTML"
+    hx-encoding="multipart/form-data"
+>
+    <label>
+        Top Image
+        <input type="file" name="top_image" accept="image/*" required>
+    </label>
+    <label>
+        Bottom Image
+        <input type="file" name="bottom_image" accept="image/*" required>
+    </label>
+    <label>
+        Fallback DPI
+        <input type="number" name="fallback_dpi" min="72" max="600" step="1" value="300">
+    </label>
+    <label>
+        JPEG Quality
+        <input type="number" name="jpeg_quality" min="70" max="100" step="1" value="95">
+    </label>
+    <button class="primary-button" type="submit">Queue ID Halves PDF</button>
+</form>

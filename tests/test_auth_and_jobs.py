@@ -70,3 +70,37 @@ def test_images_to_pdf_submission_completes_inline(app_client, sample_image_inpu
 
     assert response.status_code == 200
     assert "Download images.pdf" in response.text
+
+
+def test_id_halves_to_pdf_submission_completes_inline(app_client, sample_image_inputs: list[Path]) -> None:
+    top_image = sample_image_inputs[0]
+    bottom_image = sample_image_inputs[1]
+    files = [
+        (
+            "top_image",
+            (
+                top_image.name,
+                top_image.read_bytes(),
+                "image/jpeg" if top_image.suffix.lower() in {".jpg", ".jpeg"} else "image/png",
+            ),
+        ),
+        (
+            "bottom_image",
+            (
+                bottom_image.name,
+                bottom_image.read_bytes(),
+                "image/jpeg" if bottom_image.suffix.lower() in {".jpg", ".jpeg"} else "image/png",
+            ),
+        ),
+    ]
+    response = app_client.post(
+        "/tools/id-halves-to-pdf/submit",
+        data={
+            "fallback_dpi": "300",
+            "jpeg_quality": "95",
+        },
+        files=files,
+    )
+
+    assert response.status_code == 200
+    assert "Download id-halves.pdf" in response.text

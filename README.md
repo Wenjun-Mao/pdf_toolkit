@@ -6,6 +6,7 @@ Single-user PDF utility app built with FastAPI, HTMX, Redis/RQ, SQLite, and PyMu
 
 - Merge 2+ PDFs into one output
 - Combine multiple images into one PDF
+- Build one PDF page from top half of image 1 and bottom half of image 2
 - Split one PDF by explicit ranges or every N pages
 - Extract selected pages into a new PDF
 - Export embedded images directly from PDFs
@@ -56,6 +57,7 @@ Also set `client_max_body_size` high enough for large PDF uploads.
 ```powershell
 uv run pdfkit merge merged.pdf file1.pdf file2.pdf
 uv run pdfkit images-to-pdf output.pdf page1.png page2.jpg page3.webp --page-size letter --margin-mm 12.7 --placement fit
+uv run pdfkit id-halves-to-pdf id-front.jpg id-back.jpg id-card.pdf
 uv run pdfkit split input.pdf out_dir --ranges "1-4;5-8"
 uv run pdfkit split input.pdf out_dir --every 10
 uv run pdfkit extract-pages input.pdf output.pdf --pages "1,3-5,8-10"
