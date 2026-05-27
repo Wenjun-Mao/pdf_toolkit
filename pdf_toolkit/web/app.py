@@ -27,6 +27,7 @@ from ..jobs import (
 from ..logging import configure_logging
 from ..settings import Settings, get_settings
 from ..storage import ensure_storage_dirs, persist_uploads
+from .mixed_to_pdf import register_mixed_to_pdf_routes
 from .rendering import render_job_card, render_notice, serialize_job
 
 TOOL_REGISTRY = {
@@ -34,6 +35,11 @@ TOOL_REGISTRY = {
         "title": "Fuse PDFs",
         "description": "Combine two or more PDFs into a single file while preserving order.",
         "form_template": "partials/forms/merge.html",
+    },
+    "mixed-to-pdf": {
+        "title": "Mixed to PDF",
+        "description": "Combine PDFs and images into one PDF after reviewing the whole-file order.",
+        "form_template": "partials/forms/mixed_to_pdf.html",
     },
     "split": {
         "title": "Split PDF",
@@ -78,6 +84,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
     templates.env.globals["require_login"] = active_settings.require_login
     app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
+    register_mixed_to_pdf_routes(app, templates, active_settings)
 
     @app.middleware("http")
     async def require_login(request: Request, call_next):

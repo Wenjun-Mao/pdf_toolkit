@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from urllib.parse import urlencode
+
+from pdf_toolkit.jobs import list_recent_jobs
+from pdf_toolkit.models import JobStatus
 
 
 def _upload_tuple(path: Path) -> tuple[str, tuple[str, bytes, str]]:
@@ -49,6 +53,14 @@ def _upload_mixed_job(app_client, paths: list[Path]) -> tuple[str, list[str]]:
     return match.group(1), file_ids
 
 
+def _post_form(app_client, url: str, fields: list[tuple[str, str]]):
+    return app_client.post(
+        url,
+        content=urlencode(fields),
+        headers={"content-type": "application/x-www-form-urlencoded"},
+    )
+
+
 def test_ordered_file_id_parser_ignores_client_bound_values() -> None:
     html = """
     <input type="hidden" name="ordered_file_ids" :value="item.id">
@@ -84,9 +96,10 @@ def test_mixed_to_pdf_upload_review_and_submit_completes_inline(
     ordered_uploads = [sample_merge_pdfs[0], sample_image_inputs[0], sample_merge_pdfs[1]]
     submit_url, file_ids = _upload_mixed_job(app_client, ordered_uploads)
 
-    response = app_client.post(
+    response = _post_form(
+        app_client,
         submit_url,
-        data=[
+        [
             ("ordered_file_ids", file_ids[1]),
             ("ordered_file_ids", file_ids[0]),
             ("ordered_file_ids", file_ids[2]),
@@ -109,9 +122,10 @@ def test_mixed_to_pdf_submit_rejects_unknown_file_id(
 ) -> None:
     submit_url, file_ids = _upload_mixed_job(app_client, [sample_merge_pdfs[0], sample_image_inputs[0]])
 
-    response = app_client.post(
+    response = _post_form(
+        app_client,
         submit_url,
-        data=[
+        [
             ("ordered_file_ids", file_ids[0]),
             ("ordered_file_ids", "missing.pdf"),
             ("fallback_dpi", "300"),
@@ -124,3 +138,44 @@ def test_mixed_to_pdf_submit_rejects_unknown_file_id(
 
     assert response.status_code == 400
     assert "Submitted file order does not match uploaded files." in response.text
+
+
+def test_mixed_to_pdf_submit_rejects_repeated_submit(
+    app_client,
+    sample_merge_pdfs: list[Path],
+    sample_image_inputs: list[Path],
+) -> None:
+    submit_url, file_ids = _upload_mixed_job(app_client, [sample_merge_pdfs[0], sample_image_inputs[0]])
+    fields = [
+        ("ordered_file_ids", file_ids[0]),
+        ("ordered_file_ids", file_ids[1]),
+        ("fallback_dpi", "300"),
+        ("jpeg_quality", "95"),
+        ("page_size", "original"),
+        ("margin_mm", "0"),
+        ("placement", "fit"),
+    ]
+
+    first_response = _post_form(app_client, submit_url, fields)
+    second_response = _post_form(app_client, submit_url, fields)
+
+    assert first_response.status_code == 200
+    assert second_response.status_code == 400
+    assert "Mixed PDF job is not awaiting review." in second_response.text
+
+
+def test_mixed_to_pdf_upload_rejects_invalid_pdf_bytes(app_client, tmp_path: Path) -> None:
+    invalid_pdf = tmp_path / "invalid.pdf"
+    invalid_pdf.write_bytes(b"not a real pdf")
+
+    response = app_client.post(
+        "/tools/mixed-to-pdf/upload",
+        files=[_upload_tuple(invalid_pdf)],
+    )
+
+    assert response.status_code == 400
+    assert "Uploaded PDF could not be read." in response.text
+    mixed_jobs = [job for job in list_recent_jobs() if job.tool_name == "mixed-to-pdf"]
+    assert len(mixed_jobs) == 1
+    assert mixed_jobs[0].status == JobStatus.FAILED.value
+    assert mixed_jobs[0].error_message == "Uploaded PDF could not be read."

@@ -165,11 +165,13 @@ body {
 
 input,
 button,
+select,
 summary {
     font: inherit;
 }
 
-input {
+input,
+select {
     width: 100%;
     padding: 0.8rem 0.95rem;
     border-radius: 14px;
@@ -223,6 +225,65 @@ input {
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
+}
+
+.order-list {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.order-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.8rem;
+    border: 1px solid rgba(31, 42, 55, 0.1);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.58);
+}
+
+.order-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    background: rgba(31, 42, 55, 0.08);
+    font-weight: 700;
+}
+
+.order-meta {
+    display: grid;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+.order-meta strong {
+    overflow-wrap: anywhere;
+}
+
+.order-meta span {
+    color: var(--muted);
+    font-size: 0.88rem;
+}
+
+.order-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.35rem;
+}
+
+.mini-button {
+    padding: 0.45rem 0.7rem;
+    font-size: 0.86rem;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.54;
 }
 
 .status-pill {
