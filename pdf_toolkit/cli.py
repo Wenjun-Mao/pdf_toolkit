@@ -13,6 +13,7 @@ from .pdf_ops import (
     id_halves_to_pdf,
     images_to_pdf,
     merge_pdfs,
+    mixed_files_to_pdf,
     split_pdf,
 )
 
@@ -49,6 +50,15 @@ def build_parser() -> argparse.ArgumentParser:
     images_to_pdf_parser.add_argument("--page-size", type=str, default="original", choices=["original", "a4", "letter"])
     images_to_pdf_parser.add_argument("--margin-mm", type=float, default=0.0)
     images_to_pdf_parser.add_argument("--placement", type=str, default="fit", choices=["fit", "fill"])
+
+    mixed_parser = subparsers.add_parser("mixed-to-pdf", help="Combine PDFs and images into one PDF.")
+    mixed_parser.add_argument("output", type=Path)
+    mixed_parser.add_argument("inputs", nargs="+", type=Path)
+    mixed_parser.add_argument("--fallback-dpi", type=int, default=300)
+    mixed_parser.add_argument("--jpeg-quality", type=int, default=95)
+    mixed_parser.add_argument("--page-size", type=str, default="original", choices=["original", "a4", "letter"])
+    mixed_parser.add_argument("--margin-mm", type=float, default=0.0)
+    mixed_parser.add_argument("--placement", type=str, default="fit", choices=["fit", "fill"])
 
     id_halves_parser = subparsers.add_parser(
         "id-halves-to-pdf",
@@ -101,6 +111,19 @@ def main() -> None:
 
     if args.command == "images-to-pdf":
         images_to_pdf(
+            args.inputs,
+            args.output,
+            fallback_dpi=args.fallback_dpi,
+            jpeg_quality=args.jpeg_quality,
+            page_size=args.page_size,
+            margin_mm=args.margin_mm,
+            placement=args.placement,
+        )
+        print(args.output.resolve())
+        return
+
+    if args.command == "mixed-to-pdf":
+        mixed_files_to_pdf(
             args.inputs,
             args.output,
             fallback_dpi=args.fallback_dpi,
