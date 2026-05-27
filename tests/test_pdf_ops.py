@@ -3,9 +3,18 @@ from __future__ import annotations
 from pathlib import Path
 
 import fitz
+import pytest
 from PIL import Image, ImageDraw
 
-from pdf_toolkit.pdf_ops import extract_embedded_images, extract_pages, id_halves_to_pdf, images_to_pdf, merge_pdfs, split_pdf
+from pdf_toolkit.pdf_ops import (
+    extract_embedded_images,
+    extract_pages,
+    id_halves_to_pdf,
+    images_to_pdf,
+    merge_pdfs,
+    mixed_files_to_pdf,
+    split_pdf,
+)
 
 
 def test_merge_extract_and_split_round_trip(tmp_path: Path, sample_merge_pdfs: list[Path]) -> None:
@@ -110,6 +119,59 @@ def test_images_to_pdf_letter_fill_crops_without_distortion(tmp_path: Path, samp
         rendered = page.get_pixmap(alpha=False)
         assert rendered.pixel(10, 10) == (255, 255, 255)
         assert rendered.pixel(rendered.width // 2, rendered.height // 2) != (255, 255, 255)
+
+
+def test_mixed_files_to_pdf_preserves_pdf_image_pdf_order(
+    tmp_path: Path,
+    sample_merge_pdfs: list[Path],
+    sample_image_inputs: list[Path],
+) -> None:
+    output_path = tmp_path / "mixed.pdf"
+
+    mixed_files_to_pdf(
+        [sample_merge_pdfs[1], sample_image_inputs[0], sample_merge_pdfs[0]],
+        output_path,
+    )
+
+    with fitz.open(output_path) as output_doc:
+        assert output_doc.page_count == 4
+        assert "Second PDF / Page 1" in output_doc[0].get_text()
+        assert output_doc[1].get_images(full=True)
+        assert "First PDF / Page 1" in output_doc[2].get_text()
+        assert "First PDF / Page 2" in output_doc[3].get_text()
+
+
+def test_mixed_files_to_pdf_applies_image_page_options(
+    tmp_path: Path,
+    sample_image_inputs: list[Path],
+) -> None:
+    output_path = tmp_path / "mixed-image-options.pdf"
+
+    mixed_files_to_pdf(
+        sample_image_inputs[:1],
+        output_path,
+        page_size="letter",
+        margin_mm=12.7,
+        placement="fit",
+    )
+
+    with fitz.open(output_path) as output_doc:
+        page = output_doc[0]
+        assert output_doc.page_count == 1
+        assert round(page.rect.width, 2) == 612.0
+        assert round(page.rect.height, 2) == 792.0
+        image_xref = page.get_images(full=True)[0][0]
+        image_rect = page.get_image_rects(image_xref)[0]
+        assert round(image_rect.width, 2) == 480.0
+        assert round(image_rect.height, 2) == 720.0
+
+
+def test_mixed_files_to_pdf_rejects_unsupported_inputs(tmp_path: Path) -> None:
+    unsupported_path = tmp_path / "notes.docx"
+    unsupported_path.write_bytes(b"not a supported input")
+
+    with pytest.raises(ValueError, match="Unsupported mixed PDF input: notes.docx"):
+        mixed_files_to_pdf([unsupported_path], tmp_path / "mixed.pdf")
 
 
 def test_id_halves_to_pdf_combines_requested_regions(tmp_path: Path) -> None:
