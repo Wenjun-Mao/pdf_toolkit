@@ -2,6 +2,33 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from pdf_toolkit.models import Job, JobStatus
+from pdf_toolkit.web.rendering import serialize_job
+
+
+def test_serialize_job_marks_scan_awaiting_settings_separately() -> None:
+    scan_payload = serialize_job(
+        Job(
+            id="scan-job",
+            tool_name="scan-cleanup-analysis",
+            display_name="Analyze Scan Cleanup",
+            status=JobStatus.AWAITING_SETTINGS.value,
+        )
+    )
+    mixed_payload = serialize_job(
+        Job(
+            id="mixed-job",
+            tool_name="mixed-to-pdf",
+            display_name="Mixed to PDF",
+            status=JobStatus.AWAITING_SETTINGS.value,
+        )
+    )
+
+    assert scan_payload["awaiting_settings"] is True
+    assert scan_payload["awaiting_scan_settings"] is True
+    assert mixed_payload["awaiting_settings"] is True
+    assert mixed_payload["awaiting_scan_settings"] is False
+
 
 def test_login_required_redirects_to_login(app_client) -> None:
     unauthenticated = app_client.__class__(app_client.app)

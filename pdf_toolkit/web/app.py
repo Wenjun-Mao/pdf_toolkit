@@ -25,9 +25,9 @@ from ..jobs import (
     update_job_fields,
 )
 from ..logging import configure_logging
-from ..models import Job, JobStatus
 from ..settings import Settings, get_settings
 from ..storage import ensure_storage_dirs, persist_uploads
+from .rendering import render_job_card, render_notice, serialize_job
 
 TOOL_REGISTRY = {
     "merge": {
@@ -173,10 +173,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             stored_paths = await persist_uploads(job.id, files, active_settings)
             update_job_fields(job.id, active_settings, input_paths=[str(path) for path in stored_paths])
             enqueue_merge(job.id, active_settings)
-            return _render_job_card(request, templates, job.id, active_settings)
+            return render_job_card(request, templates, job.id, active_settings)
         except Exception as exc:
             logger.exception("Merge submission failed")
-            return _render_notice(request, templates, str(exc), status_code=400)
+            return render_notice(request, templates, str(exc), status_code=400)
 
     @app.post("/tools/split/submit", response_class=HTMLResponse)
     async def split_submit(
@@ -201,10 +201,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             stored_paths = await persist_uploads(job.id, [file], active_settings)
             update_job_fields(job.id, active_settings, input_paths=[str(path) for path in stored_paths])
             enqueue_split(job.id, active_settings)
-            return _render_job_card(request, templates, job.id, active_settings)
+            return render_job_card(request, templates, job.id, active_settings)
         except Exception as exc:
             logger.exception("Split submission failed")
-            return _render_notice(request, templates, str(exc), status_code=400)
+            return render_notice(request, templates, str(exc), status_code=400)
 
     @app.post("/tools/extract-pages/submit", response_class=HTMLResponse)
     async def extract_pages_submit(
@@ -223,10 +223,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             stored_paths = await persist_uploads(job.id, [file], active_settings)
             update_job_fields(job.id, active_settings, input_paths=[str(path) for path in stored_paths])
             enqueue_extract_pages(job.id, active_settings)
-            return _render_job_card(request, templates, job.id, active_settings)
+            return render_job_card(request, templates, job.id, active_settings)
         except Exception as exc:
             logger.exception("Extract-pages submission failed")
-            return _render_notice(request, templates, str(exc), status_code=400)
+            return render_notice(request, templates, str(exc), status_code=400)
 
     @app.post("/tools/extract-images/submit", response_class=HTMLResponse)
     async def extract_images_submit(request: Request, file: UploadFile = File(...)):
@@ -241,10 +241,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             stored_paths = await persist_uploads(job.id, [file], active_settings)
             update_job_fields(job.id, active_settings, input_paths=[str(path) for path in stored_paths])
             enqueue_extract_images(job.id, active_settings)
-            return _render_job_card(request, templates, job.id, active_settings)
+            return render_job_card(request, templates, job.id, active_settings)
         except Exception as exc:
             logger.exception("Extract-images submission failed")
-            return _render_notice(request, templates, str(exc), status_code=400)
+            return render_notice(request, templates, str(exc), status_code=400)
 
     @app.post("/tools/images-to-pdf/submit", response_class=HTMLResponse)
     async def images_to_pdf_submit(
@@ -275,10 +275,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             stored_paths = await persist_uploads(job.id, files, active_settings)
             update_job_fields(job.id, active_settings, input_paths=[str(path) for path in stored_paths])
             enqueue_images_to_pdf(job.id, active_settings)
-            return _render_job_card(request, templates, job.id, active_settings)
+            return render_job_card(request, templates, job.id, active_settings)
         except Exception as exc:
             logger.exception("Images-to-PDF submission failed")
-            return _render_notice(request, templates, str(exc), status_code=400)
+            return render_notice(request, templates, str(exc), status_code=400)
 
     @app.post("/tools/id-halves-to-pdf/submit", response_class=HTMLResponse)
     async def id_halves_to_pdf_submit(
@@ -304,10 +304,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 raise ValueError("Select a top image and a bottom image.")
             update_job_fields(job.id, active_settings, input_paths=[str(path) for path in stored_paths])
             enqueue_id_halves_to_pdf(job.id, active_settings)
-            return _render_job_card(request, templates, job.id, active_settings)
+            return render_job_card(request, templates, job.id, active_settings)
         except Exception as exc:
             logger.exception("ID halves submission failed")
-            return _render_notice(request, templates, str(exc), status_code=400)
+            return render_notice(request, templates, str(exc), status_code=400)
 
     @app.post("/tools/scan-cleanup/submit", response_class=HTMLResponse)
     async def scan_cleanup_submit(request: Request, file: UploadFile = File(...)):
@@ -322,10 +322,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             stored_paths = await persist_uploads(job.id, [file], active_settings)
             update_job_fields(job.id, active_settings, input_paths=[str(path) for path in stored_paths])
             enqueue_scan_analysis(job.id, active_settings)
-            return _render_job_card(request, templates, job.id, active_settings)
+            return render_job_card(request, templates, job.id, active_settings)
         except Exception as exc:
             logger.exception("Scan analysis submission failed")
-            return _render_notice(request, templates, str(exc), status_code=400)
+            return render_notice(request, templates, str(exc), status_code=400)
 
     @app.post("/tools/scan-cleanup/{analysis_job_id}/process", response_class=HTMLResponse)
     async def scan_cleanup_process_submit(request: Request, analysis_job_id: str):
@@ -355,7 +355,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             settings=active_settings,
         )
         enqueue_scan_process(process_job.id, active_settings)
-        return _render_job_card(request, templates, process_job.id, active_settings)
+        return render_job_card(request, templates, process_job.id, active_settings)
 
     @app.get("/jobs/{job_id}", response_class=HTMLResponse)
     async def job_detail(request: Request, job_id: str):
@@ -385,68 +385,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return FileResponse(preview_path)
 
     return app
-
-
-def serialize_job(job: Job) -> dict:
-    payload = {
-        "id": job.id,
-        "tool_name": job.tool_name,
-        "display_name": job.display_name,
-        "status": job.status,
-        "result_kind": job.result_kind,
-        "error_message": job.error_message,
-        "download_url": f"/downloads/{job.id}" if job.output_path else None,
-        "download_name": Path(job.output_path).name if job.output_path else None,
-        "created_at": job.created_at,
-        "output_path": job.output_path,
-        "can_poll": job.status in {
-            JobStatus.QUEUED.value,
-            JobStatus.ANALYZING.value,
-            JobStatus.PROCESSING.value,
-        },
-        "awaiting_settings": job.status == JobStatus.AWAITING_SETTINGS.value,
-    }
-    analysis = (job.artifact_json or {}).get("analysis")
-    if analysis:
-        payload["analysis"] = {
-            **analysis,
-            "pages": [
-                {
-                    **page_payload,
-                    "preview_url": f"/previews/{job.id}/{page_payload['preview_path']}",
-                }
-                for page_payload in analysis["pages"]
-            ],
-        }
-    if (job.artifact_json or {}).get("manifest"):
-        payload["manifest"] = job.artifact_json["manifest"]
-    return payload
-
-
-def _render_job_card(request: Request, templates: Jinja2Templates, job_id: str, settings: Settings) -> HTMLResponse:
-    job = get_job(job_id, settings)
-    if job is None:
-        raise HTTPException(status_code=404, detail="Job not found.")
-    return templates.TemplateResponse(
-        request,
-        "partials/job_card.html",
-        {"job": serialize_job(job)},
-    )
-
-
-def _render_notice(
-    request: Request,
-    templates: Jinja2Templates,
-    message: str,
-    *,
-    status_code: int = 200,
-) -> HTMLResponse:
-    return templates.TemplateResponse(
-        request,
-        "partials/notice.html",
-        {"message": message, "kind": "error"},
-        status_code=status_code,
-    )
 
 
 def _parse_page_overrides(form) -> dict[str, dict[str, float | int]]:

@@ -19,9 +19,11 @@
         <div class="notice error">{{ job.error_message }}</div>
     {% endif %}
 
-    {% if job.awaiting_settings %}
+    {% if job.awaiting_scan_settings %}
         <p class="muted">Analysis is ready. Review previews and cleanup settings before running the final pass.</p>
         <a class="primary-button link-button" href="/jobs/{{ job.id }}">Open Analysis</a>
+    {% elif job.awaiting_settings %}
+        <p class="muted">This job is waiting for review before processing.</p>
     {% elif job.download_url %}
         <a class="primary-button link-button" href="{{ job.download_url }}">Download {{ job.download_name }}</a>
     {% else %}
