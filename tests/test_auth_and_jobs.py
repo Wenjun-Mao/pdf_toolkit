@@ -7,6 +7,7 @@ import pdf_toolkit.web.app as web_app
 from pdf_toolkit.models import Job, JobStatus
 from pdf_toolkit.pdf_ops import CleanupSettings, analyze_scan_pdf
 from pdf_toolkit.jobs import create_job, get_job, update_job_fields
+from pdf_toolkit.settings import Settings
 from pdf_toolkit.web.rendering import serialize_job
 from pdf_toolkit.web.scan_cleanup_preview import _processed_preview_filename
 
@@ -33,6 +34,34 @@ def test_serialize_job_marks_scan_awaiting_settings_separately() -> None:
     assert scan_payload["awaiting_scan_settings"] is True
     assert mixed_payload["awaiting_settings"] is True
     assert mixed_payload["awaiting_scan_settings"] is False
+
+
+def test_serialize_job_uses_settings_backed_scan_defaults() -> None:
+    settings = Settings(
+        scan_default_strength=0.5,
+        scan_default_white_point=248,
+        scan_default_contrast=1.25,
+        scan_default_dpi_cap=360,
+        scan_default_jpeg_quality=88,
+    )
+
+    payload = serialize_job(
+        Job(
+            id="scan-job",
+            tool_name="scan-cleanup-analysis",
+            display_name="Analyze Scan Cleanup",
+            status=JobStatus.AWAITING_SETTINGS.value,
+        ),
+        settings,
+    )
+
+    assert payload["scan_defaults"] == {
+        "strength": 0.5,
+        "white_point": 248,
+        "contrast": 1.25,
+        "dpi_cap": 360,
+        "jpeg_quality": 88,
+    }
 
 
 def test_login_required_redirects_to_login(app_client) -> None:
@@ -165,6 +194,14 @@ def test_scan_cleanup_review_form_exposes_output_controls(
     assert 'value="300"' in response.text
     assert 'name="jpeg_quality"' in response.text
     assert 'value="92"' in response.text
+    assert 'name="preview_page"' in response.text
+    assert "Update preview" in response.text
+    assert f'hx-post="/tools/scan-cleanup/{job.id}/preview"' in response.text
+    assert f'id="job-launch-panel-{job.id}"' in response.text
+    assert f'id="scan-preview-result-{job.id}"' in response.text
+    assert f'hx-target="#job-launch-panel-{job.id}"' in response.text
+    assert f'hx-target="#scan-preview-result-{job.id}"' in response.text
+    assert f'hx-include="#job-launch-panel-{job.id} form"' in response.text
     assert "What do these settings do?" in response.text
     assert 'class="settings-help-grid"' in response.text
     assert response.text.count('class="settings-help-item"') == 5

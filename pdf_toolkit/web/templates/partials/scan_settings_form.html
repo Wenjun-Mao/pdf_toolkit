@@ -1,30 +1,57 @@
 <form
     class="stacked-form"
     hx-post="/tools/scan-cleanup/{{ job.id }}/process"
-    hx-target="#job-launch-panel"
+    hx-target="#job-launch-panel-{{ job.id }}"
     hx-swap="innerHTML"
 >
     <div class="triple-grid">
         <label>
             Strength
-            <input type="number" name="strength" step="0.05" min="0" max="1" value="0.65">
+            <input type="number" name="strength" step="0.05" min="0" max="1" value="{{ job.scan_defaults.strength }}">
         </label>
         <label>
             White Point
-            <input type="number" name="white_point" step="1" min="215" max="252" value="242">
+            <input type="number" name="white_point" step="1" min="215" max="252" value="{{ job.scan_defaults.white_point }}">
         </label>
         <label>
             Contrast
-            <input type="number" name="contrast" step="0.05" min="0.7" max="1.6" value="1.05">
+            <input type="number" name="contrast" step="0.05" min="0.7" max="1.6" value="{{ job.scan_defaults.contrast }}">
         </label>
         <label>
             Max DPI
-            <input type="number" name="dpi_cap" step="1" min="120" max="600" value="300">
+            <input type="number" name="dpi_cap" step="1" min="120" max="600" value="{{ job.scan_defaults.dpi_cap }}">
         </label>
         <label>
             JPEG Quality
-            <input type="number" name="jpeg_quality" step="1" min="70" max="100" value="92">
+            <input type="number" name="jpeg_quality" step="1" min="70" max="100" value="{{ job.scan_defaults.jpeg_quality }}">
         </label>
+    </div>
+    <div class="preview-control-row">
+        <label>
+            Preview page
+            <select
+                name="preview_page"
+                hx-post="/tools/scan-cleanup/{{ job.id }}/preview"
+                hx-trigger="change"
+                hx-include="closest form"
+                hx-target="#scan-preview-result-{{ job.id }}"
+                hx-swap="innerHTML"
+            >
+                {% for page in job.analysis.pages %}
+                    <option value="{{ page.page_number }}">Page {{ page.page_number }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <button
+            class="ghost-button"
+            type="button"
+            hx-post="/tools/scan-cleanup/{{ job.id }}/preview"
+            hx-include="closest form"
+            hx-target="#scan-preview-result-{{ job.id }}"
+            hx-swap="innerHTML"
+        >
+            Update preview
+        </button>
     </div>
     <details class="panel inset-panel settings-help">
         <summary>What do these settings do?</summary>

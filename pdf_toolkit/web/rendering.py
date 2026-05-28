@@ -11,7 +11,7 @@ from ..models import Job, JobStatus
 from ..settings import Settings
 
 
-def serialize_job(job: Job) -> dict:
+def serialize_job(job: Job, settings: Settings | None = None) -> dict:
     awaiting_settings = job.status == JobStatus.AWAITING_SETTINGS.value
     payload = {
         "id": job.id,
@@ -46,6 +46,14 @@ def serialize_job(job: Job) -> dict:
         }
     if (job.artifact_json or {}).get("manifest"):
         payload["manifest"] = job.artifact_json["manifest"]
+    if settings is not None and payload["awaiting_scan_settings"]:
+        payload["scan_defaults"] = {
+            "strength": settings.scan_default_strength,
+            "white_point": settings.scan_default_white_point,
+            "contrast": settings.scan_default_contrast,
+            "dpi_cap": settings.scan_default_dpi_cap,
+            "jpeg_quality": settings.scan_default_jpeg_quality,
+        }
     return payload
 
 
@@ -58,7 +66,7 @@ def render_job_card(
     job = get_job(job_id, settings)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found.")
-    serialized_job = serialize_job(job)
+    serialized_job = serialize_job(job, settings)
     template_name = (
         "partials/scan_cleanup_review.html"
         if serialized_job.get("awaiting_scan_settings") and serialized_job.get("analysis")

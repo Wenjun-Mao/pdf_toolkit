@@ -377,7 +377,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Job not found.")
         context = {
             "app_name": active_settings.app_name,
-            "job": serialize_job(job),
+            "job": serialize_job(job, active_settings),
         }
         if request.headers.get("hx-request") == "true" or request.query_params.get("partial") == "1":
             return render_job_card(request, templates, job_id, active_settings)

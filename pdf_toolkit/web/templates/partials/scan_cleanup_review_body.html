@@ -7,9 +7,20 @@
         <span x-text="showPreviews ? 'Hide previews' : 'Show previews'"></span>
     </button>
 </div>
-<div id="job-launch-panel">
+<div id="job-launch-panel-{{ job.id }}">
     {% include "partials/scan_settings_form.html" %}
 </div>
+<section class="compare-panel">
+    <div
+        id="scan-preview-result-{{ job.id }}"
+        hx-post="/tools/scan-cleanup/{{ job.id }}/preview"
+        hx-trigger="load"
+        hx-include="#job-launch-panel-{{ job.id }} form"
+        hx-swap="innerHTML"
+    >
+        <p class="muted">Generating preview for page 1...</p>
+    </div>
+</section>
 <div class="preview-grid" x-show="showPreviews">
     {% for page in job.analysis.pages %}
         <article class="preview-card">
