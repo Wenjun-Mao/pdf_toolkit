@@ -322,9 +322,9 @@ def _scan_process_job_impl(job: Job) -> Path:
     )
     page_overrides = {
         int(page_number): CleanupSettings(
-            strength=float(override["strength"]),
-            white_point=int(override["white_point"]),
-            contrast=float(override["contrast"]),
+            strength=float(override.get("strength", default_settings.strength)),
+            white_point=int(override.get("white_point", default_settings.white_point)),
+            contrast=float(override.get("contrast", default_settings.contrast)),
             dpi_cap=default_settings.dpi_cap,
             jpeg_quality=default_settings.jpeg_quality,
         )

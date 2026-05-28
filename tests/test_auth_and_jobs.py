@@ -249,3 +249,96 @@ def test_scan_cleanup_process_submission_stores_output_controls(
     assert process_job is not None
     assert process_job.params_json["defaults"]["dpi_cap"] == 450
     assert process_job.params_json["defaults"]["jpeg_quality"] == 92
+
+
+def test_scan_cleanup_process_submission_stores_page_overrides(
+    open_app_client,
+    sample_scan_pdf: Path,
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    analysis = analyze_scan_pdf(sample_scan_pdf, tmp_path / "previews")
+    analysis_payload = analysis.to_json()
+    for page_payload in analysis_payload["pages"]:
+        page_payload["preview_path"] = Path(page_payload["preview_path"]).name
+    analysis_job = create_job(
+        "scan-cleanup-analysis",
+        "Analyze Scan Cleanup",
+        [sample_scan_pdf],
+    )
+    update_job_fields(
+        analysis_job.id,
+        status=JobStatus.AWAITING_SETTINGS.value,
+        artifact_json={"analysis": analysis_payload},
+    )
+    monkeypatch.setattr(web_app, "enqueue_scan_process", lambda job_id, settings: None)
+
+    response = open_app_client.post(
+        f"/tools/scan-cleanup/{analysis_job.id}/process",
+        data={
+            "strength": "0.65",
+            "white_point": "242",
+            "contrast": "1.05",
+            "dpi_cap": "300",
+            "jpeg_quality": "92",
+            "page_1_strength": "0.8",
+            "page_1_white_point": "246",
+            "page_1_contrast": "1.2",
+        },
+    )
+
+    match = re.search(r'id="job-([^"]+)"', response.text)
+    assert response.status_code == 200
+    assert match is not None
+    process_job = get_job(match.group(1))
+    assert process_job is not None
+    assert process_job.params_json["page_overrides"] == {
+        "1": {"strength": 0.8, "white_point": 246, "contrast": 1.2}
+    }
+
+
+def test_scan_cleanup_process_submission_ignores_page_metadata_fields(
+    open_app_client,
+    sample_scan_pdf: Path,
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    analysis = analyze_scan_pdf(sample_scan_pdf, tmp_path / "previews")
+    analysis_payload = analysis.to_json()
+    for page_payload in analysis_payload["pages"]:
+        page_payload["preview_path"] = Path(page_payload["preview_path"]).name
+    analysis_job = create_job(
+        "scan-cleanup-analysis",
+        "Analyze Scan Cleanup",
+        [sample_scan_pdf],
+    )
+    update_job_fields(
+        analysis_job.id,
+        status=JobStatus.AWAITING_SETTINGS.value,
+        artifact_json={"analysis": analysis_payload},
+    )
+    monkeypatch.setattr(web_app, "enqueue_scan_process", lambda job_id, settings: None)
+
+    response = open_app_client.post(
+        f"/tools/scan-cleanup/{analysis_job.id}/process",
+        data={
+            "strength": "0.65",
+            "white_point": "242",
+            "contrast": "1.05",
+            "dpi_cap": "300",
+            "jpeg_quality": "92",
+            "page_count": "2",
+            "page_1_label": "Cover",
+            "page_1_strength": "0.8",
+            "page_1_contrast": "",
+        },
+    )
+
+    match = re.search(r'id="job-([^"]+)"', response.text)
+    assert response.status_code == 200
+    assert match is not None
+    process_job = get_job(match.group(1))
+    assert process_job is not None
+    assert process_job.params_json["page_overrides"] == {
+        "1": {"strength": 0.8}
+    }

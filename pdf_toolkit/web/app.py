@@ -29,6 +29,7 @@ from ..settings import Settings, get_settings
 from ..storage import ensure_storage_dirs, persist_uploads
 from .mixed_to_pdf import register_mixed_to_pdf_routes
 from .rendering import render_job_card, render_notice, serialize_job
+from .scan_cleanup_forms import parse_page_overrides, parse_scan_defaults
 
 TOOL_REGISTRY = {
     "merge": {
@@ -344,14 +345,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=400, detail="Analysis data is not ready yet.")
 
         form = await request.form()
+        default_settings = parse_scan_defaults(form, active_settings)
         defaults = {
-            "strength": float(form.get("strength", active_settings.scan_default_strength)),
-            "white_point": int(form.get("white_point", active_settings.scan_default_white_point)),
-            "contrast": float(form.get("contrast", active_settings.scan_default_contrast)),
-            "dpi_cap": int(form.get("dpi_cap", active_settings.scan_default_dpi_cap)),
-            "jpeg_quality": int(form.get("jpeg_quality", active_settings.scan_default_jpeg_quality)),
+            "strength": default_settings.strength,
+            "white_point": default_settings.white_point,
+            "contrast": default_settings.contrast,
+            "dpi_cap": default_settings.dpi_cap,
+            "jpeg_quality": default_settings.jpeg_quality,
         }
-        page_overrides = _parse_page_overrides(form)
+        page_overrides = parse_page_overrides(form)
         process_job = create_job(
             "scan-cleanup-process",
             "Process Scan Cleanup",
@@ -394,25 +396,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return FileResponse(preview_path)
 
     return app
-
-
-def _parse_page_overrides(form) -> dict[str, dict[str, float | int]]:
-    overrides: dict[str, dict[str, float | int]] = {}
-    for key, value in form.items():
-        if not key.startswith("page_") or value in ("", None):
-            continue
-        _, page_number, setting_name = key.split("_", maxsplit=2)
-        overrides.setdefault(page_number, {})
-        if setting_name == "white_point":
-            overrides[page_number][setting_name] = int(value)
-        else:
-            overrides[page_number][setting_name] = float(value)
-    return {
-        page_number: override
-        for page_number, override in overrides.items()
-        if override
-    }
-
 
 def run() -> None:
     import uvicorn
