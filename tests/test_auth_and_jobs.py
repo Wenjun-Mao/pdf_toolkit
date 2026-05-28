@@ -176,6 +176,39 @@ def test_scan_cleanup_review_form_exposes_output_controls(
     assert 'name="page_1_strength"' not in response.text
 
 
+def test_scan_cleanup_partial_embeds_review_when_analysis_is_ready(
+    open_app_client,
+    sample_scan_pdf: Path,
+    tmp_path: Path,
+) -> None:
+    analysis = analyze_scan_pdf(sample_scan_pdf, tmp_path / "previews")
+    analysis_payload = analysis.to_json()
+    for page_payload in analysis_payload["pages"]:
+        page_payload["preview_path"] = Path(page_payload["preview_path"]).name
+    job = create_job(
+        "scan-cleanup-analysis",
+        "Analyze Scan Cleanup",
+        [sample_scan_pdf],
+    )
+    update_job_fields(
+        job.id,
+        status=JobStatus.AWAITING_SETTINGS.value,
+        artifact_json={"analysis": analysis_payload},
+    )
+
+    response = open_app_client.get(
+        f"/jobs/{job.id}?partial=1",
+        headers={"HX-Request": "true"},
+    )
+
+    assert response.status_code == 200
+    assert f'id="job-{job.id}"' in response.text
+    assert "Review analysis and launch cleanup" in response.text
+    assert "Run Cleanup" in response.text
+    assert "Preview for page 1" in response.text
+    assert "Open Analysis" not in response.text
+
+
 def test_scan_cleanup_process_submission_stores_output_controls(
     open_app_client,
     sample_scan_pdf: Path,

@@ -58,10 +58,16 @@ def render_job_card(
     job = get_job(job_id, settings)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found.")
+    serialized_job = serialize_job(job)
+    template_name = (
+        "partials/scan_cleanup_review.html"
+        if serialized_job.get("awaiting_scan_settings") and serialized_job.get("analysis")
+        else "partials/job_card.html"
+    )
     return templates.TemplateResponse(
         request,
-        "partials/job_card.html",
-        {"job": serialize_job(job)},
+        template_name,
+        {"job": serialized_job},
     )
 
 

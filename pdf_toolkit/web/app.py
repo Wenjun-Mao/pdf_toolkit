@@ -376,7 +376,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "job": serialize_job(job),
         }
         if request.headers.get("hx-request") == "true" or request.query_params.get("partial") == "1":
-            return templates.TemplateResponse(request, "partials/job_card.html", context)
+            return render_job_card(request, templates, job_id, active_settings)
         return templates.TemplateResponse(request, "job_detail.html", context)
 
     @app.get("/downloads/{job_id}")

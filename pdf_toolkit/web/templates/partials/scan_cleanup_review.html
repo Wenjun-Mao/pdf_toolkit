@@ -1,0 +1,20 @@
+<article
+    id="job-{{ job.id }}"
+    class="job-card scan-review-panel status-{{ job.status }}"
+    x-data="{ showPreviews: true }"
+>
+    <div class="job-header">
+        <div>
+            <p class="eyebrow">{{ job.tool_name }}</p>
+            <h3>{{ job.display_name }}</h3>
+        </div>
+        <span class="status-pill">{{ job.status.replace("_", " ").title() }}</span>
+    </div>
+
+    {% if job.error_message %}
+        <div class="notice error">{{ job.error_message }}</div>
+    {% endif %}
+
+    <p class="muted">Analysis is ready. Review previews and cleanup settings before running the final pass.</p>
+    {% include "partials/scan_cleanup_review_body.html" %}
+</article>
