@@ -142,6 +142,38 @@ def clean_scanned_pdf(
     return output_path
 
 
+def render_cleaned_page_preview(
+    source_path: Path,
+    output_path: Path,
+    analysis: ScanAnalysis,
+    page_number: int,
+    settings: CleanupSettings,
+    preview_width_px: int = 900,
+) -> Path:
+    if page_number < 1 or page_number > analysis.page_count:
+        raise ValueError(f"Preview page must be between 1 and {analysis.page_count}.")
+
+    normalized_settings = settings.normalized()
+    page_info = analysis.pages[page_number - 1]
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with fitz.open(source_path) as document:
+        page = document[page_number - 1]
+        render_dpi = _resolve_preview_render_dpi(
+            page,
+            page_info,
+            normalized_settings,
+            preview_width_px,
+        )
+        working_image = _render_page_rgb(page, render_dpi)
+
+    cleaned_image = _clean_page_image(working_image, normalized_settings)
+    output_path.write_bytes(
+        _encode_grayscale_jpeg(cleaned_image, quality=normalized_settings.jpeg_quality)
+    )
+    return output_path
+
+
 def compare_render_metrics(source_pdf: Path, cleaned_pdf: Path, page_numbers: list[int]) -> dict:
     comparisons: list[dict] = []
     for page_number in page_numbers:
@@ -327,6 +359,19 @@ def _resolve_render_dpi(page_info: PageAnalysis, settings: CleanupSettings) -> i
     if effective_dpi is None or effective_dpi <= 0:
         return settings.dpi_cap
     return min(max(round(effective_dpi), 1), settings.dpi_cap)
+
+
+def _resolve_preview_render_dpi(
+    page: fitz.Page,
+    page_info: PageAnalysis,
+    settings: CleanupSettings,
+    preview_width_px: int,
+) -> int:
+    page_width_inches = page.rect.width / 72.0
+    if page_width_inches <= 0:
+        return _resolve_render_dpi(page_info, settings)
+    preview_dpi = max(round(preview_width_px / page_width_inches), 1)
+    return min(settings.dpi_cap, preview_dpi)
 
 
 def _fit_preview_matrix(page_width_points: float, target_width_px: int) -> fitz.Matrix:

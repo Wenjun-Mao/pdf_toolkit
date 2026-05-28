@@ -13,9 +13,12 @@ from pdf_toolkit.pdf_ops import (
     compare_render_metrics,
     extract_pages,
     generate_before_after_contact_sheet,
+    render_cleaned_page_preview,
     run_tesseract_similarity,
 )
-from pdf_toolkit.pdf_ops.scan_cleanup import GOLDEN_SCAN_PAGES
+from pdf_toolkit.pdf_ops.scan_cleanup import (
+    GOLDEN_SCAN_PAGES,
+)
 
 
 def test_scan_cleanup_rounds_effective_dpi_before_rendering(tmp_path: Path) -> None:
@@ -66,6 +69,29 @@ def test_scan_analysis_default_preview_is_readable_width(tmp_path: Path, sample_
 
     with Image.open(preview_path) as preview_image:
         assert preview_image.width >= 720
+
+
+def test_render_cleaned_page_preview_outputs_single_page_image(
+    tmp_path: Path,
+    sample_scan_pdf: Path,
+) -> None:
+    analysis = analyze_scan_pdf(sample_scan_pdf, tmp_path / "previews")
+    output_path = tmp_path / "processed-preview.jpg"
+
+    result = render_cleaned_page_preview(
+        source_path=sample_scan_pdf,
+        output_path=output_path,
+        analysis=analysis,
+        page_number=1,
+        settings=CleanupSettings(strength=0.7, white_point=244, contrast=1.1, dpi_cap=300, jpeg_quality=92),
+        preview_width_px=720,
+    )
+
+    assert result == output_path
+    assert output_path.exists()
+    with Image.open(output_path) as preview_image:
+        assert preview_image.width >= 600
+        assert preview_image.mode == "L"
 
 
 @pytest.mark.slow

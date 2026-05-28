@@ -11,6 +11,7 @@ from .scan_cleanup import (
     clean_scanned_pdf,
     compare_render_metrics,
     generate_before_after_contact_sheet,
+    render_cleaned_page_preview,
     run_tesseract_similarity,
 )
 from .split import extract_pages, split_pdf
@@ -30,6 +31,7 @@ __all__ = [
     "mixed_files_to_pdf",
     "parse_page_range_spec",
     "parse_split_range_groups",
+    "render_cleaned_page_preview",
     "run_tesseract_similarity",
     "split_pdf",
 ]
