@@ -1,0 +1,18 @@
+<div class="compare-status">
+    <strong>Page {{ page_number }}</strong>
+    <span>Strength {{ "%.2f"|format(settings.strength) }}</span>
+    <span>White {{ settings.white_point }}</span>
+    <span>Contrast {{ "%.2f"|format(settings.contrast) }}</span>
+    <span>DPI cap {{ settings.dpi_cap }}</span>
+    <span>JPEG {{ settings.jpeg_quality }}</span>
+</div>
+<div class="compare-grid">
+    <figure class="compare-frame">
+        <figcaption>Original</figcaption>
+        <img src="{{ original_url }}" alt="Original page {{ page_number }}">
+    </figure>
+    <figure class="compare-frame">
+        <figcaption>Processed</figcaption>
+        <img src="{{ processed_url }}" alt="Processed page {{ page_number }}">
+    </figure>
+</div>

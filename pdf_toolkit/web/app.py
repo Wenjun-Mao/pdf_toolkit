@@ -30,6 +30,7 @@ from ..storage import ensure_storage_dirs, persist_uploads
 from .mixed_to_pdf import register_mixed_to_pdf_routes
 from .rendering import render_job_card, render_notice, serialize_job
 from .scan_cleanup_forms import parse_page_overrides, parse_scan_defaults
+from .scan_cleanup_preview import register_scan_cleanup_preview_routes
 
 TOOL_REGISTRY = {
     "merge": {
@@ -86,6 +87,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     templates.env.globals["require_login"] = active_settings.require_login
     app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
     register_mixed_to_pdf_routes(app, templates, active_settings)
+    register_scan_cleanup_preview_routes(app, templates, active_settings)
 
     @app.middleware("http")
     async def require_login(request: Request, call_next):

@@ -5,9 +5,10 @@ from pathlib import Path
 
 import pdf_toolkit.web.app as web_app
 from pdf_toolkit.models import Job, JobStatus
-from pdf_toolkit.pdf_ops import analyze_scan_pdf
+from pdf_toolkit.pdf_ops import CleanupSettings, analyze_scan_pdf
 from pdf_toolkit.jobs import create_job, get_job, update_job_fields
 from pdf_toolkit.web.rendering import serialize_job
+from pdf_toolkit.web.scan_cleanup_preview import _processed_preview_filename
 
 
 def test_serialize_job_marks_scan_awaiting_settings_separately() -> None:
@@ -342,3 +343,165 @@ def test_scan_cleanup_process_submission_ignores_page_metadata_fields(
     assert process_job.params_json["page_overrides"] == {
         "1": {"strength": 0.8}
     }
+
+
+def test_scan_cleanup_preview_submission_returns_before_after_panel(
+    open_app_client,
+    sample_scan_pdf: Path,
+    tmp_path: Path,
+) -> None:
+    analysis = analyze_scan_pdf(sample_scan_pdf, tmp_path / "previews")
+    analysis_payload = analysis.to_json()
+    for page_payload in analysis_payload["pages"]:
+        page_payload["preview_path"] = Path(page_payload["preview_path"]).name
+    analysis_job = create_job(
+        "scan-cleanup-analysis",
+        "Analyze Scan Cleanup",
+        [sample_scan_pdf],
+    )
+    update_job_fields(
+        analysis_job.id,
+        status=JobStatus.AWAITING_SETTINGS.value,
+        artifact_json={"analysis": analysis_payload},
+    )
+
+    response = open_app_client.post(
+        f"/tools/scan-cleanup/{analysis_job.id}/preview",
+        data={
+            "preview_page": "1",
+            "strength": "0.7",
+            "white_point": "244",
+            "contrast": "1.1",
+            "dpi_cap": "300",
+            "jpeg_quality": "92",
+        },
+    )
+
+    assert response.status_code == 200
+    assert "Original" in response.text
+    assert "Processed" in response.text
+    assert "Page 1" in response.text
+    assert "/previews/" in response.text
+    assert "processed-page-001-" in response.text
+    processed_filename = re.search(r"processed-page-001-[a-f0-9]+\.jpg", response.text)
+    assert processed_filename is not None
+    assert (tmp_path / "data" / "previews" / analysis_job.id / processed_filename.group(0)).exists()
+
+
+def test_scan_cleanup_preview_rejects_invalid_page(
+    open_app_client,
+    sample_scan_pdf: Path,
+    tmp_path: Path,
+) -> None:
+    analysis = analyze_scan_pdf(sample_scan_pdf, tmp_path / "previews")
+    analysis_payload = analysis.to_json()
+    for page_payload in analysis_payload["pages"]:
+        page_payload["preview_path"] = Path(page_payload["preview_path"]).name
+    analysis_job = create_job(
+        "scan-cleanup-analysis",
+        "Analyze Scan Cleanup",
+        [sample_scan_pdf],
+    )
+    update_job_fields(
+        analysis_job.id,
+        status=JobStatus.AWAITING_SETTINGS.value,
+        artifact_json={"analysis": analysis_payload},
+    )
+
+    response = open_app_client.post(
+        f"/tools/scan-cleanup/{analysis_job.id}/preview",
+        data={
+            "preview_page": "99",
+            "strength": "0.7",
+            "white_point": "244",
+            "contrast": "1.1",
+            "dpi_cap": "300",
+            "jpeg_quality": "92",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "Preview page must be between 1 and 1." in response.text
+
+
+def test_scan_cleanup_preview_rejects_malformed_page(
+    open_app_client,
+    sample_scan_pdf: Path,
+    tmp_path: Path,
+) -> None:
+    analysis = analyze_scan_pdf(sample_scan_pdf, tmp_path / "previews")
+    analysis_payload = analysis.to_json()
+    for page_payload in analysis_payload["pages"]:
+        page_payload["preview_path"] = Path(page_payload["preview_path"]).name
+    analysis_job = create_job(
+        "scan-cleanup-analysis",
+        "Analyze Scan Cleanup",
+        [sample_scan_pdf],
+    )
+    update_job_fields(
+        analysis_job.id,
+        status=JobStatus.AWAITING_SETTINGS.value,
+        artifact_json={"analysis": analysis_payload},
+    )
+
+    response = open_app_client.post(
+        f"/tools/scan-cleanup/{analysis_job.id}/preview",
+        data={
+            "preview_page": "abc",
+            "strength": "0.7",
+            "white_point": "244",
+            "contrast": "1.1",
+            "dpi_cap": "300",
+            "jpeg_quality": "92",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "Preview page must be a whole number." in response.text
+
+
+def test_scan_cleanup_preview_rejects_invalid_numeric_settings(
+    open_app_client,
+    sample_scan_pdf: Path,
+    tmp_path: Path,
+) -> None:
+    analysis = analyze_scan_pdf(sample_scan_pdf, tmp_path / "previews")
+    analysis_payload = analysis.to_json()
+    for page_payload in analysis_payload["pages"]:
+        page_payload["preview_path"] = Path(page_payload["preview_path"]).name
+    analysis_job = create_job(
+        "scan-cleanup-analysis",
+        "Analyze Scan Cleanup",
+        [sample_scan_pdf],
+    )
+    update_job_fields(
+        analysis_job.id,
+        status=JobStatus.AWAITING_SETTINGS.value,
+        artifact_json={"analysis": analysis_payload},
+    )
+
+    response = open_app_client.post(
+        f"/tools/scan-cleanup/{analysis_job.id}/preview",
+        data={
+            "preview_page": "1",
+            "strength": "loud",
+            "white_point": "244",
+            "contrast": "1.1",
+            "dpi_cap": "300",
+            "jpeg_quality": "92",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "Preview settings must be numeric." in response.text
+
+
+def test_processed_preview_filename_includes_preview_width() -> None:
+    settings = CleanupSettings(strength=0.7, white_point=244, contrast=1.1, dpi_cap=300, jpeg_quality=92)
+
+    narrow_filename = _processed_preview_filename(1, settings, 600)
+    wide_filename = _processed_preview_filename(1, settings, 900)
+
+    assert narrow_filename.startswith("processed-page-001-")
+    assert wide_filename.startswith("processed-page-001-")
+    assert narrow_filename != wide_filename
