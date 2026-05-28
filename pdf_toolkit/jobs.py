@@ -312,16 +312,21 @@ def _scan_process_job_impl(job: Job) -> Path:
         raise ValueError("Scan cleanup job is missing its analysis payload.")
     analysis = ScanAnalysis.from_json(analysis_payload)
     output_path = build_result_path(job.id, "scan-cleaned.pdf")
+    defaults = job.params_json["defaults"]
     default_settings = CleanupSettings(
-        strength=float(job.params_json["defaults"]["strength"]),
-        white_point=int(job.params_json["defaults"]["white_point"]),
-        contrast=float(job.params_json["defaults"]["contrast"]),
+        strength=float(defaults["strength"]),
+        white_point=int(defaults["white_point"]),
+        contrast=float(defaults["contrast"]),
+        dpi_cap=int(defaults.get("dpi_cap", 300)),
+        jpeg_quality=int(defaults.get("jpeg_quality", 92)),
     )
     page_overrides = {
         int(page_number): CleanupSettings(
             strength=float(override["strength"]),
             white_point=int(override["white_point"]),
             contrast=float(override["contrast"]),
+            dpi_cap=default_settings.dpi_cap,
+            jpeg_quality=default_settings.jpeg_quality,
         )
         for page_number, override in job.params_json.get("page_overrides", {}).items()
     }

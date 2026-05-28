@@ -21,14 +21,16 @@ class CleanupSettings:
     strength: float = 0.65
     white_point: int = 242
     contrast: float = 1.05
-    dpi_cap: int = 200
+    dpi_cap: int = 300
+    jpeg_quality: int = 92
 
     def normalized(self) -> "CleanupSettings":
         return CleanupSettings(
             strength=min(max(self.strength, 0.0), 1.0),
             white_point=min(max(self.white_point, 215), 252),
             contrast=min(max(self.contrast, 0.7), 1.6),
-            dpi_cap=min(max(self.dpi_cap, 120), 300),
+            dpi_cap=min(max(self.dpi_cap, 120), 600),
+            jpeg_quality=min(max(self.jpeg_quality, 70), 100),
         )
 
 
@@ -67,7 +69,7 @@ class ScanAnalysis:
         )
 
 
-def analyze_scan_pdf(source_path: Path, preview_dir: Path, preview_width_px: int = 240) -> ScanAnalysis:
+def analyze_scan_pdf(source_path: Path, preview_dir: Path, preview_width_px: int = 900) -> ScanAnalysis:
     preview_dir.mkdir(parents=True, exist_ok=True)
     page_payloads: list[PageAnalysis] = []
 
@@ -126,9 +128,9 @@ def clean_scanned_pdf(
         for page_info in analysis.pages:
             page = document[page_info.page_number - 1]
             cleanup_settings = page_overrides.get(page_info.page_number, default_settings).normalized()
-            working_image = _render_page_rgb(page, min(int(page_info.effective_dpi or cleanup_settings.dpi_cap), cleanup_settings.dpi_cap))
+            working_image = _render_page_rgb(page, _resolve_render_dpi(page_info, cleanup_settings))
             cleaned_image = _clean_page_image(working_image, cleanup_settings)
-            cleaned_bytes = _encode_grayscale_jpeg(cleaned_image)
+            cleaned_bytes = _encode_grayscale_jpeg(cleaned_image, quality=cleanup_settings.jpeg_quality)
 
             new_page = cleaned_document.new_page(width=page.rect.width, height=page.rect.height)
             new_page.insert_image(new_page.rect, stream=cleaned_bytes)
@@ -309,7 +311,7 @@ def _clean_page_image(image: np.ndarray, settings: CleanupSettings) -> np.ndarra
     return cv2.addWeighted(grayscale, 1.12, cv2.GaussianBlur(grayscale, (0, 0), 0.9), -0.12, 0.0)
 
 
-def _encode_grayscale_jpeg(image: np.ndarray, quality: int = 78) -> bytes:
+def _encode_grayscale_jpeg(image: np.ndarray, quality: int = 92) -> bytes:
     success, encoded = cv2.imencode(
         ".jpg",
         image,
@@ -318,6 +320,13 @@ def _encode_grayscale_jpeg(image: np.ndarray, quality: int = 78) -> bytes:
     if not success:
         raise RuntimeError("Failed to encode the cleaned page image.")
     return encoded.tobytes()
+
+
+def _resolve_render_dpi(page_info: PageAnalysis, settings: CleanupSettings) -> int:
+    effective_dpi = page_info.effective_dpi
+    if effective_dpi is None or effective_dpi <= 0:
+        return settings.dpi_cap
+    return min(max(round(effective_dpi), 1), settings.dpi_cap)
 
 
 def _fit_preview_matrix(page_width_points: float, target_width_px: int) -> fitz.Matrix:

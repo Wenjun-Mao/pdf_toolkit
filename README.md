@@ -65,5 +65,5 @@ uv run pdfkit split input.pdf out_dir --every 10
 uv run pdfkit extract-pages input.pdf output.pdf --pages "1,3-5,8-10"
 uv run pdfkit extract-images input.pdf output_dir
 uv run pdfkit scan-analyze input.pdf preview_dir
-uv run pdfkit scan-cleanup input.pdf cleaned.pdf --strength 0.7 --white-point 244 --contrast 1.1
+uv run pdfkit scan-cleanup input.pdf cleaned.pdf --strength 0.7 --white-point 244 --contrast 1.1 --dpi-cap 300 --jpeg-quality 92
 ```

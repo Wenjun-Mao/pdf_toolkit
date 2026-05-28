@@ -4,6 +4,7 @@ from pathlib import Path
 
 import fitz
 import pytest
+from PIL import Image
 
 from pdf_toolkit.pdf_ops import (
     CleanupSettings,
@@ -15,6 +16,56 @@ from pdf_toolkit.pdf_ops import (
     run_tesseract_similarity,
 )
 from pdf_toolkit.pdf_ops.scan_cleanup import GOLDEN_SCAN_PAGES
+
+
+def test_scan_cleanup_rounds_effective_dpi_before_rendering(tmp_path: Path) -> None:
+    image_path = tmp_path / "page.jpg"
+    with Image.new("RGB", (827, 1169), color=(245, 245, 245)) as image:
+        image.save(image_path, format="JPEG", quality=95)
+
+    source_pdf = tmp_path / "source.pdf"
+    document = fitz.open()
+    page = document.new_page(width=595.44, height=841.68)
+    page.insert_image(page.rect, filename=str(image_path))
+    document.save(source_pdf)
+    document.close()
+
+    analysis = analyze_scan_pdf(source_pdf, tmp_path / "previews")
+    assert round(analysis.pages[0].effective_dpi or 0) == 100
+
+    cleaned_pdf = tmp_path / "cleaned.pdf"
+    clean_scanned_pdf(
+        source_pdf,
+        cleaned_pdf,
+        analysis=analysis,
+        default_settings=CleanupSettings(dpi_cap=200),
+    )
+
+    with fitz.open(cleaned_pdf) as cleaned_document:
+        cleaned_page = cleaned_document[0]
+        xref = cleaned_page.get_images(full=True)[0][0]
+        image_info = cleaned_document.extract_image(xref)
+
+    assert image_info["width"] == 827
+    assert image_info["height"] == 1169
+
+
+def test_scan_cleanup_settings_normalize_output_quality_controls() -> None:
+    low_settings = CleanupSettings(dpi_cap=80, jpeg_quality=40).normalized()
+    high_settings = CleanupSettings(dpi_cap=900, jpeg_quality=120).normalized()
+
+    assert low_settings.dpi_cap == 120
+    assert low_settings.jpeg_quality == 70
+    assert high_settings.dpi_cap == 600
+    assert high_settings.jpeg_quality == 100
+
+
+def test_scan_analysis_default_preview_is_readable_width(tmp_path: Path, sample_scan_pdf: Path) -> None:
+    analysis = analyze_scan_pdf(sample_scan_pdf, tmp_path / "previews")
+    preview_path = Path(analysis.pages[0].preview_path)
+
+    with Image.open(preview_path) as preview_image:
+        assert preview_image.width >= 720
 
 
 @pytest.mark.slow

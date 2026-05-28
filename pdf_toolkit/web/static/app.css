@@ -295,6 +295,7 @@ button:disabled {
 
 .preview-grid {
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    justify-items: center;
 }
 
 .preview-card,
@@ -305,8 +306,14 @@ button:disabled {
     border-radius: 18px;
 }
 
+.preview-card {
+    width: min(100%, 900px);
+    overflow: hidden;
+}
+
 .preview-card img {
     width: 100%;
+    height: auto;
     display: block;
     border-radius: 18px 18px 0 0;
 }
@@ -316,6 +323,38 @@ button:disabled {
     display: grid;
     gap: 0.35rem;
     padding: 0.9rem;
+}
+
+.settings-help summary {
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.settings-help-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    margin: 1rem 0 0;
+}
+
+.settings-help-item {
+    display: grid;
+    gap: 0.3rem;
+    padding: 0.85rem 0.95rem;
+    border: 1px solid rgba(31, 42, 55, 0.1);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.62);
+}
+
+.settings-help dt {
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.settings-help dd {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.42;
 }
 
 .override-grid {

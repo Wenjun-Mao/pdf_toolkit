@@ -348,6 +348,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "strength": float(form.get("strength", active_settings.scan_default_strength)),
             "white_point": int(form.get("white_point", active_settings.scan_default_white_point)),
             "contrast": float(form.get("contrast", active_settings.scan_default_contrast)),
+            "dpi_cap": int(form.get("dpi_cap", active_settings.scan_default_dpi_cap)),
+            "jpeg_quality": int(form.get("jpeg_quality", active_settings.scan_default_jpeg_quality)),
         }
         page_overrides = _parse_page_overrides(form)
         process_job = create_job(

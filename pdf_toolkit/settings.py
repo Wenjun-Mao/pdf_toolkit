@@ -29,10 +29,12 @@ class Settings(BaseSettings):
     session_secret: str = "change-me-session-secret"
     secure_cookies_default: bool = False
     run_jobs_inline: bool = False
-    preview_width_px: int = 240
+    preview_width_px: int = 900
     scan_default_strength: float = 0.65
     scan_default_white_point: int = 242
     scan_default_contrast: float = 1.05
+    scan_default_dpi_cap: int = 300
+    scan_default_jpeg_quality: int = 92
     result_ttl_hours: int = 24
     admin_password_secret_file: Path = Path("/run/secrets/pdfkit_admin_password")
     require_login_secret_file: Path = Path("/run/secrets/pdfkit_require_login")

@@ -80,6 +80,8 @@ def build_parser() -> argparse.ArgumentParser:
     cleanup_parser.add_argument("--strength", type=float, default=0.65)
     cleanup_parser.add_argument("--white-point", type=int, default=242)
     cleanup_parser.add_argument("--contrast", type=float, default=1.05)
+    cleanup_parser.add_argument("--dpi-cap", type=int, default=300)
+    cleanup_parser.add_argument("--jpeg-quality", type=int, default=92)
     cleanup_parser.add_argument("--preview-dir", type=Path, default=Path("data/cli-previews"))
 
     return parser
@@ -161,6 +163,8 @@ def main() -> None:
                 strength=args.strength,
                 white_point=args.white_point,
                 contrast=args.contrast,
+                dpi_cap=args.dpi_cap,
+                jpeg_quality=args.jpeg_quality,
             ),
         )
         print(args.output.resolve())

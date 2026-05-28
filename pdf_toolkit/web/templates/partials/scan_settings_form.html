@@ -17,28 +17,63 @@
             Contrast
             <input type="number" name="contrast" step="0.05" min="0.7" max="1.6" value="1.05">
         </label>
+        <label>
+            Max DPI
+            <input type="number" name="dpi_cap" step="1" min="120" max="600" value="300">
+        </label>
+        <label>
+            JPEG Quality
+            <input type="number" name="jpeg_quality" step="1" min="70" max="100" value="92">
+        </label>
     </div>
-    <details class="panel inset-panel">
-        <summary>Optional Page Overrides</summary>
-        <div class="override-grid">
-            {% for page in job.analysis.pages %}
-                <div class="override-card">
-                    <strong>Page {{ page.page_number }}</strong>
-                    <label>
-                        Strength
-                        <input type="number" name="page_{{ page.page_number }}_strength" step="0.05" min="0" max="1">
-                    </label>
-                    <label>
-                        White Point
-                        <input type="number" name="page_{{ page.page_number }}_white_point" step="1" min="215" max="252">
-                    </label>
-                    <label>
-                        Contrast
-                        <input type="number" name="page_{{ page.page_number }}_contrast" step="0.05" min="0.7" max="1.6">
-                    </label>
-                </div>
-            {% endfor %}
-        </div>
+    <details class="panel inset-panel settings-help">
+        <summary>What do these settings do?</summary>
+        <dl class="settings-help-grid">
+            <div class="settings-help-item">
+                <dt>Strength</dt>
+                <dd>Strength controls how aggressively background tint and noise are neutralized.</dd>
+            </div>
+            <div class="settings-help-item">
+                <dt>White Point</dt>
+                <dd>White Point controls which light pixels become pure white.</dd>
+            </div>
+            <div class="settings-help-item">
+                <dt>Contrast</dt>
+                <dd>Contrast boosts local foreground separation.</dd>
+            </div>
+            <div class="settings-help-item">
+                <dt>Max DPI</dt>
+                <dd>Max DPI caps the render resolution for each page.</dd>
+            </div>
+            <div class="settings-help-item">
+                <dt>JPEG Quality</dt>
+                <dd>JPEG Quality controls output compression.</dd>
+            </div>
+        </dl>
     </details>
+    {% if job.analysis.page_count > 1 %}
+        <details class="panel inset-panel">
+            <summary>Per-page overrides</summary>
+            <div class="override-grid">
+                {% for page in job.analysis.pages %}
+                    <div class="override-card">
+                        <strong>Page {{ page.page_number }}</strong>
+                        <label>
+                            Strength
+                            <input type="number" name="page_{{ page.page_number }}_strength" step="0.05" min="0" max="1" placeholder="Global">
+                        </label>
+                        <label>
+                            White Point
+                            <input type="number" name="page_{{ page.page_number }}_white_point" step="1" min="215" max="252" placeholder="Global">
+                        </label>
+                        <label>
+                            Contrast
+                            <input type="number" name="page_{{ page.page_number }}_contrast" step="0.05" min="0.7" max="1.6" placeholder="Global">
+                        </label>
+                    </div>
+                {% endfor %}
+            </div>
+        </details>
+    {% endif %}
     <button class="primary-button" type="submit">Run Cleanup</button>
 </form>
