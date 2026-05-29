@@ -18,6 +18,7 @@ These defaults are predictable and safe, but users still need trial and error to
 
 - Keep the current fixed settings as the stable app defaults.
 - Add an explicit `Optimize` action that suggests document-specific global settings.
+- Let users compare Original, Stable Default, and Optimized output before accepting optimized settings.
 - Favor cleanup-forward output: whiter paper, reduced tint, crisper dark text, and better print readability.
 - Protect against obvious damage: erased faint marks, lifted dark text, harsh noise, or excessive clipping.
 - Use only local deterministic image analysis with existing dependencies.
@@ -37,13 +38,23 @@ The Scan Cleanup tuning form will expose three distinct actions:
 
 ### Optimize
 
-`Optimize` runs a document-specific estimator using the existing scan analysis payload and sampled page renders. It fills the five global fields with suggested cleanup-forward values and refreshes the selected-page comparison preview.
+`Optimize` runs a document-specific estimator using the existing scan analysis payload and sampled page renders. It does not immediately change the tuning fields. Instead, it returns an optimization proposal for the selected preview page.
+
+The proposal shows a three-way comparison:
+
+```text
+Original | Stable Default | Optimized
+```
+
+The proposal also displays the suggested global settings. The user can inspect the visual result first, then click `Use optimized settings` to apply the suggested values to the five global fields and refresh the normal selected-page comparison preview.
 
 After optimization succeeds, the UI shows a small inline note:
 
 ```text
-Optimized for this document. Preview before running cleanup.
+Optimized proposal ready. Compare before applying.
 ```
+
+The proposal may include a secondary `Dismiss` or `Keep current settings` action, but v1 does not need to expose every internal candidate. Candidate details can stay behind the estimator unless a later version adds an advanced view.
 
 ### Reset Defaults
 
@@ -154,8 +165,20 @@ Responsibilities:
 - validate that analysis data exists
 - parse the selected preview page from the current form
 - run the estimator
-- return updated tuning UI values
-- refresh or trigger refresh of the selected-page comparison preview
+- render the selected page three ways: original, stable default, and optimized
+- return a proposal partial with the suggested settings and comparison images
+
+Add a lightweight apply path, implemented either as a small HTMX endpoint or client-side form update behavior:
+
+```text
+Use optimized settings
+```
+
+Responsibilities:
+
+- copy the proposed settings into the five global tuning fields
+- leave per-page override fields unchanged
+- refresh the normal selected-page comparison preview
 
 The route should not create a final cleanup job and should not write per-page overrides.
 
@@ -166,10 +189,11 @@ If optimization fails:
 - keep the user's current form values
 - show a small inline error notice
 - leave manual preview and final cleanup available
+- do not remove the current normal preview
 
 If no useful page samples can be rendered, treat it as an optimization failure and keep current values.
 
-If optimized settings normalize to the same stable defaults, the UI may still show the success note because the estimator made a valid choice.
+If optimized settings normalize to the same stable defaults, the UI may still show the proposal because the estimator made a valid choice. In that case, the Stable Default and Optimized panels may look identical.
 
 ## Testing
 
@@ -179,7 +203,9 @@ Add focused tests for:
 - candidate scoring prefers a cleaner background when dark foreground is preserved
 - candidate scoring penalizes lost faint content
 - sample selection uses one page for one-page PDFs and a bounded subset for multi-page PDFs
-- optimize endpoint updates the global fields with suggested values
+- optimize endpoint returns Original, Stable Default, and Optimized comparison outputs
+- optimize proposal includes suggested settings without immediately changing the submitted form values
+- `Use optimized settings` applies suggested values to the global fields and refreshes preview
 - optimize endpoint leaves current values intact on estimator failure
 - `Reset defaults` still restores stable app defaults, not optimized values
 - `Reset all tuning` still restores stable app defaults and clears per-page overrides
@@ -191,6 +217,7 @@ Run the scan cleanup and web tests after implementation, then run the non-slow t
 The design intentionally fixes these choices for v1:
 
 - Optimization is explicit, not automatic.
+- Optimized settings are proposed before being applied.
 - Stable defaults remain stable.
 - Optimization is document-level only.
 - OCR is excluded.
