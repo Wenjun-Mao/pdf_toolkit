@@ -26,6 +26,10 @@ body {
         linear-gradient(145deg, #fbf6eb 0%, #efe1c6 48%, #e8cfab 100%);
 }
 
+[x-cloak] {
+    display: none !important;
+}
+
 .page-shell,
 .login-shell {
     width: min(1180px, calc(100% - 2rem));
@@ -119,7 +123,6 @@ body {
 
 .tool-grid,
 .tool-layout,
-.preview-grid,
 .override-grid,
 .job-stack,
 .triple-grid {
@@ -293,12 +296,6 @@ button:disabled {
     font-size: 0.88rem;
 }
 
-.preview-grid {
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    justify-items: center;
-}
-
-.preview-card,
 .override-card,
 .inset-panel {
     background: rgba(255, 255, 255, 0.6);
@@ -306,19 +303,6 @@ button:disabled {
     border-radius: 18px;
 }
 
-.preview-card {
-    width: min(100%, 900px);
-    overflow: hidden;
-}
-
-.preview-card img {
-    width: 100%;
-    height: auto;
-    display: block;
-    border-radius: 18px 18px 0 0;
-}
-
-.preview-meta,
 .override-card {
     display: grid;
     gap: 0.35rem;
@@ -362,6 +346,22 @@ button:disabled {
     grid-template-columns: minmax(180px, 260px) auto;
     align-items: end;
     gap: 0.75rem;
+}
+
+.preview-actions,
+.override-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+}
+
+.preview-actions .ghost-button {
+    flex: 1 1 12rem;
+}
+
+.override-actions {
+    justify-content: flex-end;
+    padding-top: 0.8rem;
 }
 
 .compare-panel {

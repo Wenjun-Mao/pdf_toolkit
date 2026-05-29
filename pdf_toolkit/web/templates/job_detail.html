@@ -8,7 +8,7 @@
 </section>
 
 {% if job.awaiting_settings and job.analysis %}
-    <section class="panel" x-data="{ showPreviews: true }">
+    <section class="panel" x-data="scanCleanupReview">
         {% include "partials/scan_cleanup_review_body.html" %}
     </section>
 {% endif %}

@@ -1,0 +1,74 @@
+.zoom-image-button {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: none;
+    border-radius: 14px;
+    background: transparent;
+    cursor: zoom-in;
+    text-align: inherit;
+}
+
+.zoom-image-button:focus-visible {
+    outline: 3px solid rgba(171, 59, 36, 0.45);
+    outline-offset: 3px;
+}
+
+.zoom-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0.75rem;
+    padding: 1rem;
+    background: rgba(31, 42, 55, 0.86);
+}
+
+.zoom-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 18px;
+    background: rgba(255, 251, 244, 0.94);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.2);
+}
+
+.zoom-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.zoom-stage {
+    min-height: 0;
+    overflow: auto;
+    display: grid;
+    justify-items: center;
+    align-items: start;
+    padding: 1rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.zoom-image {
+    display: block;
+    height: auto;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+}
+
+.zoom-image-fit {
+    max-width: 100%;
+    max-height: calc(100vh - 8rem);
+}
+
+.zoom-image-scaled {
+    max-width: none;
+    max-height: none;
+}

@@ -212,6 +212,12 @@ def test_scan_cleanup_review_form_exposes_output_controls(
     assert "JPEG Quality controls output compression." in response.text
     assert "Optional Page Overrides" not in response.text
     assert 'name="page_1_strength"' not in response.text
+    assert "Hide previews" not in response.text
+    assert "Show previews" not in response.text
+    assert 'class="preview-grid"' not in response.text
+    assert "Preview for page 1" not in response.text
+    assert 'class="zoom-overlay"' in response.text
+    assert 'x-on:keydown.escape.window="zoomOpen = false"' in response.text
 
 
 def test_scan_cleanup_partial_embeds_review_when_analysis_is_ready(
@@ -243,7 +249,9 @@ def test_scan_cleanup_partial_embeds_review_when_analysis_is_ready(
     assert f'id="job-{job.id}"' in response.text
     assert "Review analysis and launch cleanup" in response.text
     assert "Run Cleanup" in response.text
-    assert "Preview for page 1" in response.text
+    assert "Preview for page 1" not in response.text
+    assert 'class="preview-grid"' not in response.text
+    assert 'class="zoom-overlay"' in response.text
     assert "Open Analysis" not in response.text
 
 
@@ -418,6 +426,10 @@ def test_scan_cleanup_preview_submission_returns_before_after_panel(
     assert "Original" in response.text
     assert "Processed" in response.text
     assert "Page 1" in response.text
+    assert 'class="zoom-image-button"' in response.text
+    assert 'aria-label="Zoom original page 1"' in response.text
+    assert 'aria-label="Zoom processed page 1"' in response.text
+    assert 'x-on:click="openZoom(' in response.text
     assert "/previews/" in response.text
     assert "processed-page-001-" in response.text
     processed_filename = re.search(r"processed-page-001-[a-f0-9]+\.jpg", response.text)

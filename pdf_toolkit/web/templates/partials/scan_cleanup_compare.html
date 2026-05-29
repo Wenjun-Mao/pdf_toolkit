@@ -9,10 +9,24 @@
 <div class="compare-grid">
     <figure class="compare-frame">
         <figcaption>Original</figcaption>
-        <img src="{{ original_url }}" alt="Original page {{ page_number }}">
+        <button
+            class="zoom-image-button"
+            type="button"
+            x-on:click="openZoom('{{ original_url }}', 'Original page {{ page_number }}')"
+            aria-label="Zoom original page {{ page_number }}"
+        >
+            <img src="{{ original_url }}" alt="Original page {{ page_number }}">
+        </button>
     </figure>
     <figure class="compare-frame">
         <figcaption>Processed</figcaption>
-        <img src="{{ processed_url }}" alt="Processed page {{ page_number }}">
+        <button
+            class="zoom-image-button"
+            type="button"
+            x-on:click="openZoom('{{ processed_url }}', 'Processed page {{ page_number }}')"
+            aria-label="Zoom processed page {{ page_number }}"
+        >
+            <img src="{{ processed_url }}" alt="Processed page {{ page_number }}">
+        </button>
     </figure>
 </div>

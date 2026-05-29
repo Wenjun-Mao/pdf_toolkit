@@ -5,7 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ app_name }}</title>
     <link rel="stylesheet" href="/static/app.css">
+    <link rel="stylesheet" href="/static/scan_cleanup.css">
     <script defer src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script>
+        document.addEventListener("alpine:init", () => {
+            Alpine.data("scanCleanupReview", () => ({
+                zoomOpen: false,
+                zoomSrc: "",
+                zoomLabel: "",
+                zoomScale: "fit",
+                openZoom(src, label) {
+                    this.zoomSrc = src;
+                    this.zoomLabel = label;
+                    this.zoomScale = "fit";
+                    this.zoomOpen = true;
+                },
+                resetScanDefaults(form) {
+                    this.applyScanDefaults(form);
+                    this.refreshScanPreview(form);
+                },
+                resetAllScanTuning(form) {
+                    this.applyScanDefaults(form);
+                    form.querySelectorAll("[data-page-override]").forEach((input) => {
+                        input.value = "";
+                    });
+                    this.refreshScanPreview(form);
+                },
+                applyScanDefaults(form) {
+                    form.querySelectorAll("[data-scan-default]").forEach((input) => {
+                        input.value = input.dataset.scanDefault || "";
+                    });
+                },
+                refreshScanPreview(form) {
+                    this.$nextTick(() => form.querySelector("[data-preview-submit]")?.click());
+                },
+            }));
+        });
+    </script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js"></script>
 </head>
 <body>

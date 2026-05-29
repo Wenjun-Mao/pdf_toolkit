@@ -3,9 +3,6 @@
         <p class="eyebrow">Scan Cleanup Tuning</p>
         <h2>Review analysis and launch cleanup</h2>
     </div>
-    <button class="ghost-button" type="button" x-on:click="showPreviews = !showPreviews">
-        <span x-text="showPreviews ? 'Hide previews' : 'Show previews'"></span>
-    </button>
 </div>
 <div id="job-launch-panel-{{ job.id }}">
     {% include "partials/scan_settings_form.html" %}
@@ -21,16 +18,32 @@
         <p class="muted">Generating preview for page 1...</p>
     </div>
 </section>
-<div class="preview-grid" x-show="showPreviews">
-    {% for page in job.analysis.pages %}
-        <article class="preview-card">
-            <img src="{{ page.preview_url }}" alt="Preview for page {{ page.page_number }}">
-            <div class="preview-meta">
-                <strong>Page {{ page.page_number }}</strong>
-                <span>DPI {{ "%.0f"|format(page.effective_dpi or 0) }}</span>
-                <span>{% if page.has_text %}OCR present{% else %}No OCR{% endif %}</span>
-                <span>{% if page.layered_images %}Layered images{% else %}Single raster{% endif %}</span>
-            </div>
-        </article>
-    {% endfor %}
+<div
+    class="zoom-overlay"
+    x-show="zoomOpen"
+    x-cloak
+    x-on:keydown.escape.window="zoomOpen = false"
+    role="dialog"
+    aria-modal="true"
+    x-bind:aria-label="zoomLabel"
+>
+    <div class="zoom-toolbar">
+        <strong x-text="zoomLabel"></strong>
+        <div class="zoom-actions" aria-label="Zoom controls">
+            <button type="button" class="ghost-button mini-button" x-on:click="zoomScale = 'fit'">Fit</button>
+            <button type="button" class="ghost-button mini-button" x-on:click="zoomScale = '1'">100%</button>
+            <button type="button" class="ghost-button mini-button" x-on:click="zoomScale = '1.5'">150%</button>
+            <button type="button" class="ghost-button mini-button" x-on:click="zoomScale = '2'">200%</button>
+            <button type="button" class="primary-button mini-button" x-on:click="zoomOpen = false">Close</button>
+        </div>
+    </div>
+    <div class="zoom-stage" x-on:click.self="zoomOpen = false">
+        <img
+            class="zoom-image"
+            x-bind:class="zoomScale === 'fit' ? 'zoom-image-fit' : 'zoom-image-scaled'"
+            x-bind:src="zoomSrc"
+            x-bind:alt="zoomLabel"
+            x-bind:style="zoomScale === 'fit' ? '' : 'width: ' + (Number(zoomScale) * 100) + '%; max-width: none; max-height: none;'"
+        >
+    </div>
 </div>

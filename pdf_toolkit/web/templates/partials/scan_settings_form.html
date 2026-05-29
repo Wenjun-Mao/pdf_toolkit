@@ -7,23 +7,23 @@
     <div class="triple-grid">
         <label>
             Strength
-            <input type="number" name="strength" step="0.05" min="0" max="1" value="{{ job.scan_defaults.strength }}">
+            <input type="number" name="strength" step="0.05" min="0" max="1" value="{{ job.scan_defaults.strength }}" data-scan-default="{{ job.scan_defaults.strength }}">
         </label>
         <label>
             White Point
-            <input type="number" name="white_point" step="1" min="215" max="252" value="{{ job.scan_defaults.white_point }}">
+            <input type="number" name="white_point" step="1" min="215" max="252" value="{{ job.scan_defaults.white_point }}" data-scan-default="{{ job.scan_defaults.white_point }}">
         </label>
         <label>
             Contrast
-            <input type="number" name="contrast" step="0.05" min="0.7" max="1.6" value="{{ job.scan_defaults.contrast }}">
+            <input type="number" name="contrast" step="0.05" min="0.7" max="1.6" value="{{ job.scan_defaults.contrast }}" data-scan-default="{{ job.scan_defaults.contrast }}">
         </label>
         <label>
             Max DPI
-            <input type="number" name="dpi_cap" step="1" min="120" max="600" value="{{ job.scan_defaults.dpi_cap }}">
+            <input type="number" name="dpi_cap" step="1" min="120" max="600" value="{{ job.scan_defaults.dpi_cap }}" data-scan-default="{{ job.scan_defaults.dpi_cap }}">
         </label>
         <label>
             JPEG Quality
-            <input type="number" name="jpeg_quality" step="1" min="70" max="100" value="{{ job.scan_defaults.jpeg_quality }}">
+            <input type="number" name="jpeg_quality" step="1" min="70" max="100" value="{{ job.scan_defaults.jpeg_quality }}" data-scan-default="{{ job.scan_defaults.jpeg_quality }}">
         </label>
     </div>
     <div class="preview-control-row">
@@ -42,16 +42,26 @@
                 {% endfor %}
             </select>
         </label>
-        <button
-            class="ghost-button"
-            type="button"
-            hx-post="/tools/scan-cleanup/{{ job.id }}/preview"
-            hx-include="closest form"
-            hx-target="#scan-preview-result-{{ job.id }}"
-            hx-swap="innerHTML"
-        >
-            Update preview
-        </button>
+        <div class="preview-actions">
+            <button
+                class="ghost-button"
+                type="button"
+                x-on:click="resetScanDefaults($el.form)"
+            >
+                Reset defaults
+            </button>
+            <button
+                class="ghost-button"
+                type="button"
+                data-preview-submit
+                hx-post="/tools/scan-cleanup/{{ job.id }}/preview"
+                hx-include="closest form"
+                hx-target="#scan-preview-result-{{ job.id }}"
+                hx-swap="innerHTML"
+            >
+                Update preview
+            </button>
+        </div>
     </div>
     <details class="panel inset-panel settings-help">
         <summary>What do these settings do?</summary>
@@ -81,21 +91,30 @@
     {% if job.analysis.page_count > 1 %}
         <details class="panel inset-panel">
             <summary>Per-page overrides</summary>
+            <div class="override-actions">
+                <button
+                    class="ghost-button mini-button"
+                    type="button"
+                    x-on:click="confirm('Reset global settings and clear all per-page overrides?') && resetAllScanTuning($el.form)"
+                >
+                    Reset all tuning
+                </button>
+            </div>
             <div class="override-grid">
                 {% for page in job.analysis.pages %}
                     <div class="override-card">
                         <strong>Page {{ page.page_number }}</strong>
                         <label>
                             Strength
-                            <input type="number" name="page_{{ page.page_number }}_strength" step="0.05" min="0" max="1" placeholder="Global">
+                            <input type="number" name="page_{{ page.page_number }}_strength" step="0.05" min="0" max="1" placeholder="Global" data-page-override>
                         </label>
                         <label>
                             White Point
-                            <input type="number" name="page_{{ page.page_number }}_white_point" step="1" min="215" max="252" placeholder="Global">
+                            <input type="number" name="page_{{ page.page_number }}_white_point" step="1" min="215" max="252" placeholder="Global" data-page-override>
                         </label>
                         <label>
                             Contrast
-                            <input type="number" name="page_{{ page.page_number }}_contrast" step="0.05" min="0.7" max="1.6" placeholder="Global">
+                            <input type="number" name="page_{{ page.page_number }}_contrast" step="0.05" min="0.7" max="1.6" placeholder="Global" data-page-override>
                         </label>
                     </div>
                 {% endfor %}
