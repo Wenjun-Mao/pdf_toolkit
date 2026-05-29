@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
 import fitz
+import pytest
 
 from pdf_toolkit.jobs import create_job, update_job_fields
 from pdf_toolkit.models import JobStatus
@@ -71,6 +73,10 @@ def test_scan_cleanup_base_includes_apply_optimized_settings(open_app_client) ->
 
 
 def test_apply_optimized_scan_settings_static_helper_updates_form_only() -> None:
+    node_path = shutil.which("node")
+    if node_path is None:
+        pytest.skip("Node.js is required to execute scan cleanup apply behavior test.")
+
     script_path = (
         Path(__file__).parents[1] / "pdf_toolkit" / "web" / "static" / "scan_cleanup.js"
     )
@@ -139,7 +145,7 @@ assert.strictEqual(refreshCalls.length, 1);
 assert.strictEqual(refreshCalls[0], form);
 """
     result = subprocess.run(
-        ["node", "-e", node_test, str(script_path)],
+        [node_path, "-e", node_test, str(script_path)],
         cwd=Path(__file__).parents[1],
         capture_output=True,
         text=True,
