@@ -532,7 +532,7 @@ def test_scan_cleanup_optimize_failure_keeps_existing_preview_available(
         data={"preview_page": "1"},
     )
 
-    assert response.status_code == 400
+    assert response.status_code == 200
     assert "Optimization failed. Keep using the current settings or tune manually." in response.text
     assert "optimize-proposal" not in response.text
 

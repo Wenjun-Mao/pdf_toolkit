@@ -35,7 +35,7 @@
             <button
                 class="zoom-image-button"
                 type="button"
-                x-on:click="openZoom('{{ original_url }}', 'Original page {{ page_number }}')"
+                x-on:click='openZoom({{ original_url|tojson }}, {{ ("Original page " ~ page_number)|tojson }})'
                 aria-label="Zoom original page {{ page_number }}"
             >
                 <img src="{{ original_url }}" alt="Original page {{ page_number }}">
@@ -46,7 +46,7 @@
             <button
                 class="zoom-image-button"
                 type="button"
-                x-on:click="openZoom('{{ stable_url }}', 'Stable default page {{ page_number }}')"
+                x-on:click='openZoom({{ stable_url|tojson }}, {{ ("Stable default page " ~ page_number)|tojson }})'
                 aria-label="Zoom stable default page {{ page_number }}"
             >
                 <img src="{{ stable_url }}" alt="Stable default page {{ page_number }}">
@@ -57,7 +57,7 @@
             <button
                 class="zoom-image-button"
                 type="button"
-                x-on:click="openZoom('{{ optimized_url }}', 'Optimized page {{ page_number }}')"
+                x-on:click='openZoom({{ optimized_url|tojson }}, {{ ("Optimized page " ~ page_number)|tojson }})'
                 aria-label="Zoom optimized page {{ page_number }}"
             >
                 <img src="{{ optimized_url }}" alt="Optimized page {{ page_number }}">

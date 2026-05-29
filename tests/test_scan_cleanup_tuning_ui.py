@@ -55,6 +55,24 @@ def test_scan_cleanup_tuning_form_can_reset_everything_when_page_overrides_exist
     assert len(re.findall(r"<input[^>]+data-page-override", response.text)) == 6
 
 
+def test_scan_cleanup_review_includes_optimized_settings_applier(
+    open_app_client,
+    sample_scan_pdf: Path,
+    tmp_path: Path,
+) -> None:
+    job = _create_scan_analysis_job(sample_scan_pdf, tmp_path / "previews")
+
+    response = open_app_client.get(f"/jobs/{job.id}")
+
+    assert response.status_code == 200
+    assert "applyOptimizedScanSettings(proposal, form)" in response.text
+    assert "optimizedStrength" in response.text
+    assert "optimizedWhitePoint" in response.text
+    assert "optimizedContrast" in response.text
+    assert "optimizedDpiCap" in response.text
+    assert "optimizedJpegQuality" in response.text
+
+
 def _create_scan_analysis_job(source_pdf: Path, preview_dir: Path):
     analysis = analyze_scan_pdf(source_pdf, preview_dir)
     analysis_payload = analysis.to_json()

@@ -113,6 +113,7 @@ def register_scan_cleanup_preview_routes(
                 request,
                 templates,
                 "Optimization failed. Keep using the current settings or tune manually.",
+                status_code=200,
             )
 
         page_payload = analysis_payload["pages"][page_number - 1]
@@ -146,12 +147,13 @@ def _render_validation_notice(
     request: Request,
     templates: Jinja2Templates,
     message: str,
+    status_code: int = 400,
 ) -> Response:
     return templates.TemplateResponse(
         request,
         "partials/notice.html",
         {"message": message, "kind": "error"},
-        status_code=400,
+        status_code=status_code,
     )
 
 

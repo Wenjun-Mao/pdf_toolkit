@@ -31,6 +31,33 @@
                     });
                     this.refreshScanPreview(form);
                 },
+                applyOptimizedScanSettings(proposal, form) {
+                    if (!proposal || !form) {
+                        return;
+                    }
+                    const optimizedFields = [
+                        ["strength", "optimizedStrength"],
+                        ["white_point", "optimizedWhitePoint"],
+                        ["contrast", "optimizedContrast"],
+                        ["dpi_cap", "optimizedDpiCap"],
+                        ["jpeg_quality", "optimizedJpegQuality"],
+                    ];
+                    optimizedFields.forEach(([fieldName, datasetKey]) => {
+                        const input = form.querySelector(`[name="${fieldName}"]`);
+                        const value = proposal.dataset[datasetKey];
+                        if (!input || value === undefined) {
+                            return;
+                        }
+                        input.value = value;
+                        input.dispatchEvent(new Event("input", { bubbles: true }));
+                        input.dispatchEvent(new Event("change", { bubbles: true }));
+                    });
+                    const state = proposal.querySelector("[data-optimization-state]");
+                    if (state) {
+                        state.textContent = "Optimized settings applied. Preview refresh requested.";
+                    }
+                    this.refreshScanPreview(form);
+                },
                 applyScanDefaults(form) {
                     form.querySelectorAll("[data-scan-default]").forEach((input) => {
                         input.value = input.dataset.scanDefault || "";
