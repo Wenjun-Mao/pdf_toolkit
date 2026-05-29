@@ -49,12 +49,10 @@
                             return;
                         }
                         input.value = value;
-                        input.dispatchEvent(new Event("input", { bubbles: true }));
-                        input.dispatchEvent(new Event("change", { bubbles: true }));
                     });
                     const state = proposal.querySelector("[data-optimization-state]");
                     if (state) {
-                        state.textContent = "Optimized settings applied. Preview refresh requested.";
+                        state.textContent = "Optimized settings applied. Preview refreshed.";
                     }
                     this.refreshScanPreview(form);
                 },

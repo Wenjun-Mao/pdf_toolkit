@@ -20,6 +20,10 @@ def test_scan_cleanup_tuning_form_can_reset_global_defaults(
     response = open_app_client.get(f"/jobs/{job.id}")
 
     assert response.status_code == 200
+    assert "Optimize" in response.text
+    assert f'hx-post="/tools/scan-cleanup/{job.id}/optimize"' in response.text
+    assert f'hx-target="#scan-optimize-result-{job.id}"' in response.text
+    assert f'id="scan-optimize-result-{job.id}"' in response.text
     assert "Reset defaults" in response.text
     assert 'x-on:click="resetScanDefaults($el.form)"' in response.text
     assert 'data-preview-submit' in response.text
@@ -55,14 +59,8 @@ def test_scan_cleanup_tuning_form_can_reset_everything_when_page_overrides_exist
     assert len(re.findall(r"<input[^>]+data-page-override", response.text)) == 6
 
 
-def test_scan_cleanup_review_includes_optimized_settings_applier(
-    open_app_client,
-    sample_scan_pdf: Path,
-    tmp_path: Path,
-) -> None:
-    job = _create_scan_analysis_job(sample_scan_pdf, tmp_path / "previews")
-
-    response = open_app_client.get(f"/jobs/{job.id}")
+def test_scan_cleanup_base_includes_apply_optimized_settings(open_app_client) -> None:
+    response = open_app_client.get("/tools/scan-cleanup")
 
     assert response.status_code == 200
     assert "applyOptimizedScanSettings(proposal, form)" in response.text
@@ -71,6 +69,8 @@ def test_scan_cleanup_review_includes_optimized_settings_applier(
     assert "optimizedContrast" in response.text
     assert "optimizedDpiCap" in response.text
     assert "optimizedJpegQuality" in response.text
+    assert "data-optimization-state" in response.text
+    assert "Optimized settings applied. Preview refreshed." in response.text
 
 
 def _create_scan_analysis_job(source_pdf: Path, preview_dir: Path):
