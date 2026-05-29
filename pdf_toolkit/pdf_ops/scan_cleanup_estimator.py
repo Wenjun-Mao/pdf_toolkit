@@ -48,7 +48,6 @@ class _GrayscaleMetrics:
 def estimate_cleanup_settings(
     source_path: Path,
     analysis: ScanAnalysis,
-    *,
     stable_settings: CleanupSettings | None = None,
     preview_width_px: int = 900,
     max_samples: int = 5,

@@ -103,3 +103,15 @@ def test_estimate_cleanup_settings_returns_normalized_result(sample_scan_pdf: Pa
     assert 0.7 <= result.settings.contrast <= 1.6
     assert result.settings.dpi_cap == 300
     assert result.settings.jpeg_quality == 92
+
+
+def test_estimate_cleanup_settings_accepts_positional_optional_arguments(
+    sample_scan_pdf: Path,
+    tmp_path: Path,
+) -> None:
+    analysis = analyze_scan_pdf(sample_scan_pdf, tmp_path / "previews")
+
+    result = estimate_cleanup_settings(sample_scan_pdf, analysis, CleanupSettings(), 360, 3)
+
+    assert isinstance(result, OptimizationResult)
+    assert result.sampled_pages == [1]
