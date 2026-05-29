@@ -1,0 +1,105 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import cv2
+import fitz
+import numpy as np
+
+from pdf_toolkit.pdf_ops import CleanupSettings, analyze_scan_pdf
+from pdf_toolkit.pdf_ops.scan_cleanup_estimator import (
+    OptimizationResult,
+    estimate_cleanup_settings,
+    generate_candidate_settings,
+    score_candidate,
+    select_sample_page_numbers,
+)
+
+
+def test_select_sample_page_numbers_uses_one_page_for_single_page(sample_scan_pdf: Path, tmp_path: Path) -> None:
+    analysis = analyze_scan_pdf(sample_scan_pdf, tmp_path / "previews")
+
+    assert select_sample_page_numbers(analysis, max_samples=5) == [1]
+
+
+def test_select_sample_page_numbers_uses_bounded_coverage_for_multi_page(tmp_path: Path) -> None:
+    source_pdf = tmp_path / "many-pages.pdf"
+    document = fitz.open()
+    for _ in range(12):
+        page = document.new_page(width=300, height=400)
+        page.insert_text((36, 72), "sample")
+    document.save(source_pdf)
+    document.close()
+    analysis = analyze_scan_pdf(source_pdf, tmp_path / "previews")
+
+    selected = select_sample_page_numbers(analysis, max_samples=5)
+
+    assert selected[0] == 1
+    assert selected[-1] == 12
+    assert len(selected) <= 5
+    assert selected == sorted(set(selected))
+
+
+def test_generate_candidate_settings_keeps_output_controls_stable() -> None:
+    stable = CleanupSettings(strength=0.65, white_point=242, contrast=1.05, dpi_cap=300, jpeg_quality=92)
+
+    candidates = generate_candidate_settings(stable)
+
+    assert stable.normalized() in candidates
+    assert {candidate.dpi_cap for candidate in candidates} == {300}
+    assert {candidate.jpeg_quality for candidate in candidates} == {92}
+    assert all(0.0 <= candidate.strength <= 1.0 for candidate in candidates)
+    assert all(215 <= candidate.white_point <= 252 for candidate in candidates)
+    assert all(0.7 <= candidate.contrast <= 1.6 for candidate in candidates)
+
+
+def test_score_candidate_prefers_clean_background_when_foreground_is_preserved() -> None:
+    original = np.full((96, 128), 208, dtype=np.uint8)
+    cv2.rectangle(original, (18, 28), (112, 40), 35, thickness=-1)
+    cv2.line(original, (16, 62), (116, 62), 155, thickness=1)
+
+    weak = np.full_like(original, 226)
+    cv2.rectangle(weak, (18, 28), (112, 40), 35, thickness=-1)
+    cv2.line(weak, (16, 62), (116, 62), 155, thickness=1)
+
+    clean = np.full_like(original, 250)
+    cv2.rectangle(clean, (18, 28), (112, 40), 35, thickness=-1)
+    cv2.line(clean, (16, 62), (116, 62), 155, thickness=1)
+
+    assert score_candidate(original, clean) > score_candidate(original, weak)
+
+
+def test_score_candidate_penalizes_erased_faint_content() -> None:
+    original = np.full((96, 128), 210, dtype=np.uint8)
+    cv2.rectangle(original, (18, 28), (112, 40), 35, thickness=-1)
+    cv2.line(original, (16, 62), (116, 62), 155, thickness=1)
+
+    preserved = np.full_like(original, 250)
+    cv2.rectangle(preserved, (18, 28), (112, 40), 35, thickness=-1)
+    cv2.line(preserved, (16, 62), (116, 62), 165, thickness=1)
+
+    erased = np.full_like(original, 250)
+    cv2.rectangle(erased, (18, 28), (112, 40), 35, thickness=-1)
+    cv2.line(erased, (16, 62), (116, 62), 255, thickness=1)
+
+    assert score_candidate(original, preserved) > score_candidate(original, erased)
+
+
+def test_estimate_cleanup_settings_returns_normalized_result(sample_scan_pdf: Path, tmp_path: Path) -> None:
+    analysis = analyze_scan_pdf(sample_scan_pdf, tmp_path / "previews")
+
+    result = estimate_cleanup_settings(
+        sample_scan_pdf,
+        analysis,
+        stable_settings=CleanupSettings(),
+        preview_width_px=360,
+        max_samples=3,
+    )
+
+    assert isinstance(result, OptimizationResult)
+    assert result.sampled_pages == [1]
+    assert 0.0 <= result.settings.strength <= 1.0
+    assert 215 <= result.settings.white_point <= 252
+    assert 0.7 <= result.settings.contrast <= 1.6
+    assert result.settings.dpi_cap == 300
+    assert result.settings.jpeg_quality == 92
