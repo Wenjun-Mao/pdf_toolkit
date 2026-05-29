@@ -75,6 +75,16 @@ TOOL_REGISTRY = {
     },
 }
 
+TOOL_NAV_ITEMS = [
+    ("merge", "Merge"),
+    ("mixed-to-pdf", "Mixed to PDF"),
+    ("split", "Split"),
+    ("extract-pages", "Extract Pages"),
+    ("extract-images", "Extract Images"),
+    ("id-halves-to-pdf", "ID Halves"),
+    ("scan-cleanup", "Scan Cleanup"),
+]
+
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     active_settings = settings or get_settings()
@@ -85,6 +95,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title=active_settings.app_name, debug=active_settings.debug)
     templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
     templates.env.globals["require_login"] = active_settings.require_login
+    templates.env.globals["tool_nav_items"] = TOOL_NAV_ITEMS
     app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
     register_mixed_to_pdf_routes(app, templates, active_settings)
     register_scan_cleanup_preview_routes(app, templates, active_settings)

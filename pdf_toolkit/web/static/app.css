@@ -1,5 +1,5 @@
 :root {
-    --bg: #f4ecdd;
+    --bg: #f8f1e6;
     --bg-accent: #ead8b7;
     --panel: rgba(255, 251, 244, 0.84);
     --panel-strong: rgba(248, 239, 223, 0.95);
@@ -21,9 +21,10 @@ body {
     margin: 0;
     font-family: var(--sans);
     color: var(--ink);
-    background:
-        radial-gradient(circle at top left, rgba(255, 250, 242, 0.8), transparent 35%),
-        linear-gradient(145deg, #fbf6eb 0%, #efe1c6 48%, #e8cfab 100%);
+    min-height: 100vh;
+    background-color: var(--bg);
+    background-image: radial-gradient(circle at top left, rgba(255, 253, 248, 0.78), transparent 34rem);
+    background-repeat: no-repeat;
 }
 
 [x-cloak] {
@@ -45,8 +46,8 @@ body {
 }
 
 .brand,
-.topnav a,
-.mini-link {
+.mini-link,
+.nav-pill {
     color: var(--ink);
     text-decoration: none;
 }
@@ -60,7 +61,34 @@ body {
 .topnav {
     display: flex;
     flex-wrap: wrap;
-    gap: 1rem;
+    justify-content: flex-end;
+    gap: 0.45rem;
+}
+
+.nav-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.25rem;
+    padding: 0.45rem 0.72rem;
+    border: 1px solid rgba(171, 59, 36, 0.16);
+    border-radius: 999px;
+    background: rgba(255, 251, 244, 0.86);
+    box-shadow: 0 6px 18px rgba(73, 49, 24, 0.08);
+    white-space: nowrap;
+    transition: background 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+
+.nav-pill:hover {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(171, 59, 36, 0.28);
+    box-shadow: 0 8px 22px rgba(73, 49, 24, 0.11);
+}
+
+.topnav .nav-pill.is-active {
+    background: linear-gradient(135deg, var(--accent), #d45c2b);
+    color: #fff9f1;
+    border-color: transparent;
+    box-shadow: 0 10px 24px rgba(171, 59, 36, 0.18);
 }
 
 .main-shell {
@@ -147,11 +175,7 @@ body {
 }
 
 .tool-layout {
-    grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
-}
-
-.panel-side {
-    background: rgba(255, 252, 247, 0.66);
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .stacked-form {
@@ -415,12 +439,6 @@ button:disabled {
 
 .triple-grid {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-}
-
-.flat-list {
-    list-style: disc;
-    padding-left: 1.2rem;
-    margin: 0;
 }
 
 .login-body {

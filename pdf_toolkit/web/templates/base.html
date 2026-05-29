@@ -48,14 +48,16 @@
     <div class="page-shell">
         <header class="topbar">
             <a class="brand" href="/">PDF Kit</a>
-            <nav class="topnav">
-                <a href="/tools/merge">Merge</a>
-                <a href="/tools/mixed-to-pdf">Mixed to PDF</a>
-                <a href="/tools/split">Split</a>
-                <a href="/tools/extract-pages">Extract Pages</a>
-                <a href="/tools/extract-images">Extract Images</a>
-                <a href="/tools/id-halves-to-pdf">ID Halves</a>
-                <a href="/tools/scan-cleanup">Scan Cleanup</a>
+            {% set current_path = request.url.path %}
+            <nav class="topnav" aria-label="Tools">
+                {% for nav_tool_id, nav_label in tool_nav_items %}
+                    {% set nav_href = "/tools/" ~ nav_tool_id %}
+                    <a
+                        class="nav-pill{% if current_path == nav_href %} is-active{% endif %}"
+                        href="{{ nav_href }}"
+                        {% if current_path == nav_href %}aria-current="page"{% endif %}
+                    >{{ nav_label }}</a>
+                {% endfor %}
             </nav>
             {% if require_login %}
             <form action="/logout" method="post">
