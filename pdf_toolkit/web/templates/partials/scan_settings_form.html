@@ -46,6 +46,16 @@
             <button
                 class="ghost-button"
                 type="button"
+                hx-post="/tools/scan-cleanup/{{ job.id }}/optimize"
+                hx-include="closest form"
+                hx-target="#scan-optimize-result-{{ job.id }}"
+                hx-swap="innerHTML"
+            >
+                Optimize
+            </button>
+            <button
+                class="ghost-button"
+                type="button"
                 x-on:click="resetScanDefaults($el.form)"
             >
                 Reset defaults

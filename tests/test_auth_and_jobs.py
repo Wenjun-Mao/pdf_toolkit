@@ -6,6 +6,7 @@ from pathlib import Path
 import pdf_toolkit.web.app as web_app
 from pdf_toolkit.models import Job, JobStatus
 from pdf_toolkit.pdf_ops import CleanupSettings, analyze_scan_pdf
+from pdf_toolkit.pdf_ops.scan_cleanup_estimator import OptimizationResult
 from pdf_toolkit.jobs import create_job, get_job, update_job_fields
 from pdf_toolkit.settings import Settings
 from pdf_toolkit.web.rendering import serialize_job
@@ -435,6 +436,117 @@ def test_scan_cleanup_preview_submission_returns_before_after_panel(
     processed_filename = re.search(r"processed-page-001-[a-f0-9]+\.jpg", response.text)
     assert processed_filename is not None
     assert (tmp_path / "data" / "previews" / analysis_job.id / processed_filename.group(0)).exists()
+
+
+def test_scan_cleanup_optimize_returns_three_way_proposal(
+    monkeypatch,
+    open_app_client,
+    sample_scan_pdf: Path,
+    tmp_path: Path,
+) -> None:
+    analysis = analyze_scan_pdf(sample_scan_pdf, tmp_path / "previews")
+    analysis_payload = analysis.to_json()
+    for page_payload in analysis_payload["pages"]:
+        page_payload["preview_path"] = Path(page_payload["preview_path"]).name
+    analysis_job = create_job(
+        "scan-cleanup-analysis",
+        "Analyze Scan Cleanup",
+        [sample_scan_pdf],
+    )
+    update_job_fields(
+        analysis_job.id,
+        status=JobStatus.AWAITING_SETTINGS.value,
+        artifact_json={"analysis": analysis_payload},
+    )
+
+    def fake_estimate_cleanup_settings(*args, **kwargs):
+        return OptimizationResult(
+            settings=CleanupSettings(strength=0.85, white_point=246, contrast=1.25, dpi_cap=300, jpeg_quality=92),
+            sampled_pages=[1],
+            score=1.5,
+        )
+
+    threadpool_calls = []
+
+    async def fake_run_in_threadpool(func, *args, **kwargs):
+        threadpool_calls.append(func)
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr(
+        "pdf_toolkit.web.scan_cleanup_preview.estimate_cleanup_settings",
+        fake_estimate_cleanup_settings,
+    )
+    monkeypatch.setattr(
+        "pdf_toolkit.web.scan_cleanup_preview.run_in_threadpool",
+        fake_run_in_threadpool,
+        raising=False,
+    )
+
+    response = open_app_client.post(
+        f"/tools/scan-cleanup/{analysis_job.id}/optimize",
+        data={
+            "preview_page": "1",
+            "strength": "0.25",
+            "white_point": "220",
+            "contrast": "0.8",
+            "dpi_cap": "300",
+            "jpeg_quality": "92",
+        },
+    )
+
+    assert response.status_code == 200
+    assert "Optimized proposal ready. Compare before applying." in response.text
+    assert "Original" in response.text
+    assert "Stable Default" in response.text
+    assert "Optimized" in response.text
+    assert "Use optimized settings" in response.text
+    assert 'data-optimized-strength="0.85"' in response.text
+    assert 'data-optimized-white-point="246"' in response.text
+    assert 'data-optimized-contrast="1.25"' in response.text
+    assert 'data-optimized-dpi-cap="300"' in response.text
+    assert 'data-optimized-jpeg-quality="92"' in response.text
+    assert 'name="strength"' not in response.text
+    assert response.text.count("processed-page-001-") >= 2
+    assert len(threadpool_calls) >= 3
+
+
+def test_scan_cleanup_optimize_failure_keeps_existing_preview_available(
+    monkeypatch,
+    open_app_client,
+    sample_scan_pdf: Path,
+    tmp_path: Path,
+) -> None:
+    analysis = analyze_scan_pdf(sample_scan_pdf, tmp_path / "previews")
+    analysis_payload = analysis.to_json()
+    for page_payload in analysis_payload["pages"]:
+        page_payload["preview_path"] = Path(page_payload["preview_path"]).name
+    analysis_job = create_job(
+        "scan-cleanup-analysis",
+        "Analyze Scan Cleanup",
+        [sample_scan_pdf],
+    )
+    update_job_fields(
+        analysis_job.id,
+        status=JobStatus.AWAITING_SETTINGS.value,
+        artifact_json={"analysis": analysis_payload},
+    )
+
+    def fake_estimate_cleanup_settings(*args, **kwargs):
+        raise RuntimeError("cannot score this document")
+
+    monkeypatch.setattr(
+        "pdf_toolkit.web.scan_cleanup_preview.estimate_cleanup_settings",
+        fake_estimate_cleanup_settings,
+    )
+
+    response = open_app_client.post(
+        f"/tools/scan-cleanup/{analysis_job.id}/optimize",
+        data={"preview_page": "1"},
+    )
+
+    assert response.status_code == 200
+    assert "Optimization failed. Keep using the current settings or tune manually." in response.text
+    assert "optimize-proposal" not in response.text
 
 
 def test_scan_cleanup_preview_rejects_invalid_page(

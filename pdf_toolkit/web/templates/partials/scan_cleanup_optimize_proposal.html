@@ -1,0 +1,67 @@
+<section
+    class="compare-panel optimize-proposal"
+    data-optimized-strength="{{ '%.2f'|format(optimized_settings.strength) }}"
+    data-optimized-white-point="{{ optimized_settings.white_point }}"
+    data-optimized-contrast="{{ '%.2f'|format(optimized_settings.contrast) }}"
+    data-optimized-dpi-cap="{{ optimized_settings.dpi_cap }}"
+    data-optimized-jpeg-quality="{{ optimized_settings.jpeg_quality }}"
+>
+    <div class="section-header compact-section-header">
+        <div>
+            <p class="eyebrow">Optimization Proposal</p>
+            <h3>Optimized proposal ready. Compare before applying.</h3>
+        </div>
+        <button
+            class="primary-button mini-button"
+            type="button"
+            x-on:click="applyOptimizedScanSettings($el.closest('[data-optimized-strength]'), document.querySelector('#job-launch-panel-{{ job_id }} form'))"
+        >
+            Use optimized settings
+        </button>
+    </div>
+    <div class="compare-status">
+        <strong>Page {{ page_number }}</strong>
+        <span>Strength {{ "%.2f"|format(optimized_settings.strength) }}</span>
+        <span>White {{ optimized_settings.white_point }}</span>
+        <span>Contrast {{ "%.2f"|format(optimized_settings.contrast) }}</span>
+        <span>DPI cap {{ optimized_settings.dpi_cap }}</span>
+        <span>JPEG {{ optimized_settings.jpeg_quality }}</span>
+        <span>Sampled {{ sampled_pages|join(", ") }}</span>
+    </div>
+    <p class="muted" data-optimization-state>Optimized settings have not been applied yet.</p>
+    <div class="compare-grid optimize-compare-grid">
+        <figure class="compare-frame">
+            <figcaption>Original</figcaption>
+            <button
+                class="zoom-image-button"
+                type="button"
+                x-on:click='openZoom({{ original_url|tojson }}, {{ ("Original page " ~ page_number)|tojson }})'
+                aria-label="Zoom original page {{ page_number }}"
+            >
+                <img src="{{ original_url }}" alt="Original page {{ page_number }}">
+            </button>
+        </figure>
+        <figure class="compare-frame">
+            <figcaption>Stable Default</figcaption>
+            <button
+                class="zoom-image-button"
+                type="button"
+                x-on:click='openZoom({{ stable_url|tojson }}, {{ ("Stable default page " ~ page_number)|tojson }})'
+                aria-label="Zoom stable default page {{ page_number }}"
+            >
+                <img src="{{ stable_url }}" alt="Stable default page {{ page_number }}">
+            </button>
+        </figure>
+        <figure class="compare-frame">
+            <figcaption>Optimized</figcaption>
+            <button
+                class="zoom-image-button"
+                type="button"
+                x-on:click='openZoom({{ optimized_url|tojson }}, {{ ("Optimized page " ~ page_number)|tojson }})'
+                aria-label="Zoom optimized page {{ page_number }}"
+            >
+                <img src="{{ optimized_url }}" alt="Optimized page {{ page_number }}">
+            </button>
+        </figure>
+    </div>
+</section>
