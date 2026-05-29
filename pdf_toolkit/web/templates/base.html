@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/static/app.css">
     <link rel="stylesheet" href="/static/scan_cleanup.css">
     <script defer src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script defer src="/static/scan_cleanup.js"></script>
     <script>
         document.addEventListener("alpine:init", () => {
             Alpine.data("scanCleanupReview", () => ({
@@ -32,29 +33,11 @@
                     this.refreshScanPreview(form);
                 },
                 applyOptimizedScanSettings(proposal, form) {
-                    if (!proposal || !form) {
-                        return;
-                    }
-                    const optimizedFields = [
-                        ["strength", "optimizedStrength"],
-                        ["white_point", "optimizedWhitePoint"],
-                        ["contrast", "optimizedContrast"],
-                        ["dpi_cap", "optimizedDpiCap"],
-                        ["jpeg_quality", "optimizedJpegQuality"],
-                    ];
-                    optimizedFields.forEach(([fieldName, datasetKey]) => {
-                        const input = form.querySelector(`[name="${fieldName}"]`);
-                        const value = proposal.dataset[datasetKey];
-                        if (!input || value === undefined) {
-                            return;
-                        }
-                        input.value = value;
-                    });
-                    const state = proposal.querySelector("[data-optimization-state]");
-                    if (state) {
-                        state.textContent = "Optimized settings applied. Preview refreshed.";
-                    }
-                    this.refreshScanPreview(form);
+                    window.applyOptimizedScanSettingsToForm(
+                        proposal,
+                        form,
+                        (targetForm) => this.refreshScanPreview(targetForm),
+                    );
                 },
                 applyScanDefaults(form) {
                     form.querySelectorAll("[data-scan-default]").forEach((input) => {
