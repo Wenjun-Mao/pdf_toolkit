@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from itertools import product
 from pathlib import Path
 
 import cv2
 import fitz
 import numpy as np
+from PIL import Image
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from .scan_cleanup import (
@@ -18,9 +18,19 @@ from .scan_cleanup import (
 )
 
 
-_STRENGTH_CANDIDATES = (0.65, 0.75, 0.85, 0.9)
-_WHITE_POINT_CANDIDATES = (238, 242, 246, 248)
-_CONTRAST_CANDIDATES = (1.05, 1.15, 1.25, 1.35)
+_CLEANUP_PROFILE_CANDIDATES = (
+    (0.65, 242, 1.05),
+    (0.70, 242, 1.10),
+    (0.75, 244, 1.15),
+    (0.80, 246, 1.20),
+    (0.85, 246, 1.25),
+    (0.90, 248, 1.30),
+    (0.82, 248, 1.10),
+    (0.90, 246, 1.15),
+    (0.72, 246, 1.25),
+)
+_MAX_PROBLEM_SAMPLE_PAGES = 2
+_PREVIEW_PROBLEM_SCORE_THRESHOLD = 0.45
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,7 +50,7 @@ class _GrayscaleMetrics:
 
 
 @retry(
-    retry=retry_if_exception_type((RuntimeError, OSError, ValueError)),
+    retry=retry_if_exception_type((RuntimeError, OSError)),
     wait=wait_exponential(multiplier=0.25, min=0.25, max=2),
     stop=stop_after_attempt(3),
     reraise=True,
@@ -51,9 +61,14 @@ def estimate_cleanup_settings(
     stable_settings: CleanupSettings | None = None,
     preview_width_px: int = 900,
     max_samples: int = 5,
+    preview_dir: Path | None = None,
 ) -> OptimizationResult:
     normalized_stable = (stable_settings or CleanupSettings()).normalized()
-    sampled_pages = select_sample_page_numbers(analysis, max_samples=max_samples)
+    sampled_pages = select_sample_page_numbers(
+        analysis,
+        max_samples=max_samples,
+        preview_dir=preview_dir,
+    )
     if not sampled_pages:
         raise ValueError("No pages are available for scan cleanup optimization.")
 
@@ -71,11 +86,10 @@ def estimate_cleanup_settings(
                 preview_width_px,
             )
             original_rgb = _render_page_rgb(page, render_dpi)
-            original_gray = cv2.cvtColor(original_rgb, cv2.COLOR_RGB2GRAY)
 
             for index, candidate in enumerate(candidates):
                 cleaned_gray = _clean_page_image(original_rgb, candidate)
-                scores[index] += score_candidate(original_gray, cleaned_gray)
+                scores[index] += score_candidate(original_rgb, cleaned_gray, candidate)
 
     averaged_scores = [score / len(sampled_pages) for score in scores]
     best_index = max(range(len(candidates)), key=lambda index: averaged_scores[index])
@@ -86,7 +100,12 @@ def estimate_cleanup_settings(
     )
 
 
-def select_sample_page_numbers(analysis: ScanAnalysis, *, max_samples: int = 5) -> list[int]:
+def select_sample_page_numbers(
+    analysis: ScanAnalysis,
+    *,
+    max_samples: int = 5,
+    preview_dir: Path | None = None,
+) -> list[int]:
     page_count = analysis.page_count
     if page_count <= 0 or max_samples <= 0:
         return []
@@ -94,9 +113,34 @@ def select_sample_page_numbers(analysis: ScanAnalysis, *, max_samples: int = 5) 
         return list(range(1, page_count + 1))
     if max_samples == 1:
         return [1]
+    if max_samples == 2:
+        return [1, page_count]
 
-    page_numbers = np.rint(np.linspace(1, page_count, num=max_samples)).astype(int)
-    return sorted({min(max(int(page_number), 1), page_count) for page_number in page_numbers})
+    selected: list[int] = []
+    for page_number in (1, _middle_page_number(page_count), page_count):
+        _append_page_number(selected, page_number, page_count, max_samples)
+
+    problem_slots = min(_MAX_PROBLEM_SAMPLE_PAGES, max_samples - len(selected))
+    if problem_slots > 0:
+        for page_number, score in _rank_preview_problem_pages(analysis, preview_dir):
+            if score < _PREVIEW_PROBLEM_SCORE_THRESHOLD:
+                break
+            if _append_page_number(selected, page_number, page_count, max_samples):
+                problem_slots -= 1
+            if problem_slots <= 0:
+                break
+
+    for page_number in _evenly_spaced_page_numbers(page_count, max_samples):
+        if len(selected) >= max_samples:
+            break
+        _append_page_number(selected, page_number, page_count, max_samples)
+
+    for page_number in range(1, page_count + 1):
+        if len(selected) >= max_samples:
+            break
+        _append_page_number(selected, page_number, page_count, max_samples)
+
+    return sorted(selected)
 
 
 def generate_candidate_settings(stable_settings: CleanupSettings) -> list[CleanupSettings]:
@@ -104,11 +148,8 @@ def generate_candidate_settings(stable_settings: CleanupSettings) -> list[Cleanu
     candidates: list[CleanupSettings] = []
     seen: set[tuple[float, int, float, int, int]] = set()
 
-    for strength, white_point, contrast in product(
-        _STRENGTH_CANDIDATES,
-        _WHITE_POINT_CANDIDATES,
-        _CONTRAST_CANDIDATES,
-    ):
+    _append_unique_candidate(candidates, seen, normalized)
+    for strength, white_point, contrast in _CLEANUP_PROFILE_CANDIDATES:
         candidate = CleanupSettings(
             strength=strength,
             white_point=white_point,
@@ -118,13 +159,16 @@ def generate_candidate_settings(stable_settings: CleanupSettings) -> list[Cleanu
         ).normalized()
         _append_unique_candidate(candidates, seen, candidate)
 
-    if _settings_key(normalized) not in seen:
-        candidates.insert(0, normalized)
     return candidates
 
 
-def score_candidate(original_gray: np.ndarray, cleaned_gray: np.ndarray) -> float:
-    original = _as_grayscale(original_gray)
+def score_candidate(
+    original_gray: np.ndarray,
+    cleaned_gray: np.ndarray,
+    settings: CleanupSettings | None = None,
+) -> float:
+    original_array = np.asarray(original_gray)
+    original = _as_grayscale(original_array)
     cleaned = _as_grayscale(cleaned_gray)
     if original.shape != cleaned.shape:
         raise ValueError("Original and cleaned images must have matching dimensions.")
@@ -139,7 +183,7 @@ def score_candidate(original_gray: np.ndarray, cleaned_gray: np.ndarray) -> floa
     clipping_penalty = max(0.0, cleaned_metrics.white_ratio - 0.96) * 4.0
     noise_penalty = max(0.0, cleaned_metrics.noise - original_metrics.noise - 4.0) / 18.0
 
-    return (
+    score = (
         background_score
         + 0.8 * separation_score
         - 1.25 * foreground_lift_penalty
@@ -147,6 +191,168 @@ def score_candidate(original_gray: np.ndarray, cleaned_gray: np.ndarray) -> floa
         - clipping_penalty
         - 0.7 * noise_penalty
     )
+    if settings is not None and _is_rgb_image(original_array):
+        score += _tint_cleanup_reward(original_array, settings)
+    return score
+
+
+def _middle_page_number(page_count: int) -> int:
+    return max(1, min(page_count, (page_count + 1) // 2))
+
+
+def _append_page_number(
+    selected: list[int],
+    page_number: int,
+    page_count: int,
+    max_samples: int,
+) -> bool:
+    bounded_page_number = min(max(int(page_number), 1), page_count)
+    if len(selected) >= max_samples or bounded_page_number in selected:
+        return False
+    selected.append(bounded_page_number)
+    return True
+
+
+def _evenly_spaced_page_numbers(page_count: int, max_samples: int) -> list[int]:
+    page_numbers = np.rint(np.linspace(1, page_count, num=max_samples)).astype(int)
+    return [min(max(int(page_number), 1), page_count) for page_number in page_numbers]
+
+
+def _rank_preview_problem_pages(
+    analysis: ScanAnalysis,
+    preview_dir: Path | None,
+) -> list[tuple[int, float]]:
+    scored_pages: list[tuple[int, float]] = []
+    for page_info in analysis.pages:
+        preview_path = _resolve_preview_path(page_info.preview_path, preview_dir)
+        if preview_path is None:
+            continue
+        try:
+            preview_rgb = _load_preview_rgb(preview_path)
+        except (OSError, ValueError):
+            continue
+        problem_score = _preview_problem_score(preview_rgb)
+        if problem_score > 0.0:
+            scored_pages.append((page_info.page_number, problem_score))
+
+    return sorted(scored_pages, key=lambda item: (-item[1], item[0]))
+
+
+def _resolve_preview_path(preview_path: str, preview_dir: Path | None) -> Path | None:
+    raw_path = Path(preview_path)
+    candidates: list[Path] = []
+    if raw_path.is_absolute():
+        candidates.append(raw_path)
+    else:
+        if preview_dir is not None:
+            candidates.append(preview_dir / raw_path)
+            candidates.append(preview_dir / raw_path.name)
+        candidates.append(raw_path)
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _load_preview_rgb(preview_path: Path) -> np.ndarray:
+    with Image.open(preview_path) as image:
+        rgb = np.array(image.convert("RGB"))
+
+    height, width = rgb.shape[:2]
+    max_dimension = max(height, width)
+    if max_dimension <= 360:
+        return rgb
+
+    scale = 360 / max_dimension
+    resized_size = (max(1, round(width * scale)), max(1, round(height * scale)))
+    return cv2.resize(rgb, resized_size, interpolation=cv2.INTER_AREA)
+
+
+def _preview_problem_score(rgb_image: np.ndarray) -> float:
+    tint_pressure = _background_tint_pressure(rgb_image)
+    dim_pressure = _background_dim_pressure(rgb_image)
+    noise_pressure = _background_noise_pressure(rgb_image)
+    return 0.9 * tint_pressure + 0.65 * dim_pressure + 0.45 * noise_pressure
+
+
+def _tint_cleanup_reward(original_rgb: np.ndarray, settings: CleanupSettings) -> float:
+    tint_pressure = _background_tint_pressure(original_rgb)
+    if tint_pressure <= 0.0:
+        return 0.0
+
+    normalized = settings.normalized()
+    cleanup_bias = (
+        0.7 * ((normalized.strength - 0.65) / 0.25)
+        + 0.15 * ((normalized.white_point - 242) / 8.0)
+        + 0.15 * ((normalized.contrast - 1.05) / 0.25)
+    )
+    return tint_pressure * float(np.clip(cleanup_bias, -1.0, 1.0)) * 0.45
+
+
+def _background_tint_pressure(rgb_image: np.ndarray) -> float:
+    if not _is_rgb_image(rgb_image):
+        return 0.0
+
+    rgb = np.asarray(rgb_image, dtype=np.uint8)
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+    background_mask = _background_mask(gray)
+    background = rgb[background_mask].astype(np.float32)
+    if background.size == 0:
+        return 0.0
+
+    mean_channels = np.mean(background, axis=0)
+    channel_spread = float(np.max(mean_channels) - np.min(mean_channels))
+    per_pixel_spread = float(np.mean(np.max(background, axis=1) - np.min(background, axis=1)))
+    tint = max(channel_spread, per_pixel_spread * 0.75)
+    return _clamp01((tint - 8.0) / 42.0)
+
+
+def _background_dim_pressure(rgb_image: np.ndarray) -> float:
+    if not _is_rgb_image(rgb_image):
+        return 0.0
+
+    gray = cv2.cvtColor(np.asarray(rgb_image, dtype=np.uint8), cv2.COLOR_RGB2GRAY)
+    background_mask = _background_mask(gray)
+    background = gray[background_mask]
+    if background.size == 0:
+        return 0.0
+
+    brightness = float(np.percentile(background, 80))
+    return _clamp01((232.0 - brightness) / 70.0)
+
+
+def _background_noise_pressure(rgb_image: np.ndarray) -> float:
+    if not _is_rgb_image(rgb_image):
+        return 0.0
+
+    gray = cv2.cvtColor(np.asarray(rgb_image, dtype=np.uint8), cv2.COLOR_RGB2GRAY)
+    background_mask = _background_mask(gray)
+    laplacian = cv2.Laplacian(gray, cv2.CV_32F)
+    if not np.any(background_mask):
+        return 0.0
+
+    noise = float(np.std(laplacian[background_mask]))
+    return _clamp01((noise - 5.0) / 45.0)
+
+
+def _background_mask(gray: np.ndarray) -> np.ndarray:
+    image = gray.astype(np.uint8)
+    light_mask = image >= np.percentile(image, 70)
+    edge_mask = cv2.dilate(cv2.Canny(image, 50, 150), np.ones((3, 3), dtype=np.uint8)) > 0
+    background_mask = light_mask & ~edge_mask
+    if np.count_nonzero(background_mask) < max(16, int(image.size * 0.02)):
+        return light_mask
+    return background_mask
+
+
+def _is_rgb_image(image: np.ndarray) -> bool:
+    array = np.asarray(image)
+    return array.ndim == 3 and array.shape[2] == 3
+
+
+def _clamp01(value: float) -> float:
+    return min(max(float(value), 0.0), 1.0)
 
 
 def _append_unique_candidate(

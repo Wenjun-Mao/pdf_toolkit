@@ -466,9 +466,20 @@ def test_scan_cleanup_optimize_returns_three_way_proposal(
             score=1.5,
         )
 
+    threadpool_calls = []
+
+    async def fake_run_in_threadpool(func, *args, **kwargs):
+        threadpool_calls.append(func)
+        return func(*args, **kwargs)
+
     monkeypatch.setattr(
         "pdf_toolkit.web.scan_cleanup_preview.estimate_cleanup_settings",
         fake_estimate_cleanup_settings,
+    )
+    monkeypatch.setattr(
+        "pdf_toolkit.web.scan_cleanup_preview.run_in_threadpool",
+        fake_run_in_threadpool,
+        raising=False,
     )
 
     response = open_app_client.post(
@@ -496,6 +507,7 @@ def test_scan_cleanup_optimize_returns_three_way_proposal(
     assert 'data-optimized-jpeg-quality="92"' in response.text
     assert 'name="strength"' not in response.text
     assert response.text.count("processed-page-001-") >= 2
+    assert len(threadpool_calls) >= 3
 
 
 def test_scan_cleanup_optimize_failure_keeps_existing_preview_available(

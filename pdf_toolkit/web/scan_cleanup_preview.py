@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 from loguru import logger
+from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData
 
 from ..jobs import get_job
@@ -85,27 +86,35 @@ def register_scan_cleanup_preview_routes(
         try:
             source_path = Path(analysis_job.input_paths[0])
             stable_settings = _stable_scan_settings(settings)
-            optimization = estimate_cleanup_settings(
-                source_path,
-                analysis,
-                stable_settings=stable_settings,
-                preview_width_px=settings.preview_width_px,
+            preview_dir = job_preview_dir(analysis_job.id, settings)
+            optimization = await run_in_threadpool(
+                lambda: estimate_cleanup_settings(
+                    source_path,
+                    analysis,
+                    stable_settings=stable_settings,
+                    preview_width_px=min(settings.preview_width_px, 480),
+                    preview_dir=preview_dir,
+                )
             )
-            stable_url = _render_or_reuse_processed_preview(
-                analysis_job_id=analysis_job.id,
-                source_path=source_path,
-                analysis=analysis,
-                page_number=page_number,
-                preview_settings=stable_settings,
-                app_settings=settings,
+            stable_url = await run_in_threadpool(
+                lambda: _render_or_reuse_processed_preview(
+                    analysis_job_id=analysis_job.id,
+                    source_path=source_path,
+                    analysis=analysis,
+                    page_number=page_number,
+                    preview_settings=stable_settings,
+                    app_settings=settings,
+                )
             )
-            optimized_url = _render_or_reuse_processed_preview(
-                analysis_job_id=analysis_job.id,
-                source_path=source_path,
-                analysis=analysis,
-                page_number=page_number,
-                preview_settings=optimization.settings,
-                app_settings=settings,
+            optimized_url = await run_in_threadpool(
+                lambda: _render_or_reuse_processed_preview(
+                    analysis_job_id=analysis_job.id,
+                    source_path=source_path,
+                    analysis=analysis,
+                    page_number=page_number,
+                    preview_settings=optimization.settings,
+                    app_settings=settings,
+                )
             )
         except Exception:
             logger.exception("Scan cleanup optimization failed for analysis job {}", analysis_job.id)

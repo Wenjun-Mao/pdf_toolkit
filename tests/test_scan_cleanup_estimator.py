@@ -5,8 +5,10 @@ from pathlib import Path
 import cv2
 import fitz
 import numpy as np
+from PIL import Image
 
 from pdf_toolkit.pdf_ops import CleanupSettings, analyze_scan_pdf
+from pdf_toolkit.pdf_ops.scan_cleanup import PageAnalysis, ScanAnalysis
 from pdf_toolkit.pdf_ops.scan_cleanup_estimator import (
     OptimizationResult,
     estimate_cleanup_settings,
@@ -45,12 +47,35 @@ def test_generate_candidate_settings_keeps_output_controls_stable() -> None:
 
     candidates = generate_candidate_settings(stable)
 
+    assert len(candidates) <= 12
     assert stable.normalized() in candidates
     assert {candidate.dpi_cap for candidate in candidates} == {300}
     assert {candidate.jpeg_quality for candidate in candidates} == {92}
     assert all(0.0 <= candidate.strength <= 1.0 for candidate in candidates)
     assert all(215 <= candidate.white_point <= 252 for candidate in candidates)
     assert all(0.7 <= candidate.contrast <= 1.6 for candidate in candidates)
+
+
+def test_select_sample_page_numbers_includes_problem_preview_page(tmp_path: Path) -> None:
+    preview_dir = tmp_path / "previews"
+    preview_dir.mkdir()
+    pages: list[PageAnalysis] = []
+    for page_number in range(1, 9):
+        preview_path = preview_dir / f"page-{page_number:03d}.jpg"
+        if page_number == 3:
+            _write_preview_image(preview_path, rgb=(176, 145, 114), noise=18)
+        else:
+            _write_preview_image(preview_path, rgb=(238, 238, 238), noise=1)
+        pages.append(_page_analysis(page_number, preview_path.name))
+    analysis = ScanAnalysis(source_path="sample.pdf", page_count=8, pages=pages)
+
+    selected = select_sample_page_numbers(analysis, max_samples=5, preview_dir=preview_dir)
+
+    assert 1 in selected
+    assert 3 in selected
+    assert 8 in selected
+    assert len(selected) <= 5
+    assert selected == sorted(set(selected))
 
 
 def test_score_candidate_prefers_clean_background_when_foreground_is_preserved() -> None:
@@ -124,6 +149,21 @@ def test_score_candidate_penalizes_harsh_background_noise() -> None:
     assert score_candidate(original, smooth) > score_candidate(original, noisy)
 
 
+def test_score_candidate_rewards_stronger_cleanup_under_tint_pressure() -> None:
+    tinted_rgb = np.full((96, 128, 3), (218, 192, 158), dtype=np.uint8)
+    cv2.rectangle(tinted_rgb, (16, 26), (112, 46), (42, 42, 42), thickness=-1)
+    same_cleaned_gray = cv2.cvtColor(tinted_rgb, cv2.COLOR_RGB2GRAY)
+
+    strong_settings = CleanupSettings(strength=0.9, white_point=246, contrast=1.25)
+    weak_settings = CleanupSettings(strength=0.65, white_point=242, contrast=1.05)
+
+    assert score_candidate(tinted_rgb, same_cleaned_gray, strong_settings) > score_candidate(
+        tinted_rgb,
+        same_cleaned_gray,
+        weak_settings,
+    )
+
+
 def test_estimate_cleanup_settings_returns_normalized_result(sample_scan_pdf: Path, tmp_path: Path) -> None:
     analysis = analyze_scan_pdf(sample_scan_pdf, tmp_path / "previews")
 
@@ -142,6 +182,28 @@ def test_estimate_cleanup_settings_returns_normalized_result(sample_scan_pdf: Pa
     assert 0.7 <= result.settings.contrast <= 1.6
     assert result.settings.dpi_cap == 300
     assert result.settings.jpeg_quality == 92
+
+
+def _page_analysis(page_number: int, preview_path: str) -> PageAnalysis:
+    return PageAnalysis(
+        page_number=page_number,
+        has_text=False,
+        full_page_xrefs=[],
+        dominant_xref=None,
+        dominant_has_mask=False,
+        effective_dpi=None,
+        has_mask=False,
+        layered_images=False,
+        preview_path=preview_path,
+    )
+
+
+def _write_preview_image(path: Path, *, rgb: tuple[int, int, int], noise: int) -> None:
+    image = np.full((72, 56, 3), rgb, dtype=np.int16)
+    if noise:
+        rng = np.random.default_rng(100 + int(path.stem[-3:]))
+        image += rng.integers(-noise, noise + 1, size=image.shape)
+    Image.fromarray(np.clip(image, 0, 255).astype(np.uint8)).save(path)
 
 
 def test_estimate_cleanup_settings_accepts_positional_optional_arguments(
