@@ -85,6 +85,45 @@ def test_score_candidate_penalizes_erased_faint_content() -> None:
     assert score_candidate(original, preserved) > score_candidate(original, erased)
 
 
+def test_score_candidate_penalizes_lifted_dark_foreground() -> None:
+    original = np.full((96, 128), 210, dtype=np.uint8)
+    cv2.rectangle(original, (16, 26), (112, 46), 35, thickness=-1)
+
+    preserved = np.full_like(original, 250)
+    cv2.rectangle(preserved, (16, 26), (112, 46), 35, thickness=-1)
+
+    lifted = np.full_like(original, 250)
+    cv2.rectangle(lifted, (16, 26), (112, 46), 100, thickness=-1)
+
+    assert score_candidate(original, preserved) > score_candidate(original, lifted)
+
+
+def test_score_candidate_penalizes_over_clipped_output() -> None:
+    original = np.full((96, 128), 208, dtype=np.uint8)
+    bright = np.full_like(original, 251)
+    clipped = np.full_like(original, 255)
+
+    assert score_candidate(original, bright) > score_candidate(original, clipped)
+
+
+def test_score_candidate_penalizes_harsh_background_noise() -> None:
+    rng = np.random.default_rng(7)
+    original = np.full((96, 128), 210, dtype=np.uint8)
+    cv2.rectangle(original, (16, 26), (112, 46), 35, thickness=-1)
+
+    smooth = np.full_like(original, 246)
+    cv2.rectangle(smooth, (16, 26), (112, 46), 35, thickness=-1)
+
+    noisy = np.clip(
+        np.full_like(original, 246, dtype=np.int16) + rng.integers(-10, 11, size=original.shape),
+        0,
+        255,
+    ).astype(np.uint8)
+    cv2.rectangle(noisy, (16, 26), (112, 46), 35, thickness=-1)
+
+    assert score_candidate(original, smooth) > score_candidate(original, noisy)
+
+
 def test_estimate_cleanup_settings_returns_normalized_result(sample_scan_pdf: Path, tmp_path: Path) -> None:
     analysis = analyze_scan_pdf(sample_scan_pdf, tmp_path / "previews")
 

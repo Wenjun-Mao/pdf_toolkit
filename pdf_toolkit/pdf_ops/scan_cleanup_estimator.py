@@ -145,7 +145,7 @@ def score_candidate(original_gray: np.ndarray, cleaned_gray: np.ndarray) -> floa
         - 1.25 * foreground_lift_penalty
         - faint_loss_penalty
         - clipping_penalty
-        - 0.45 * noise_penalty
+        - 0.7 * noise_penalty
     )
 
 
