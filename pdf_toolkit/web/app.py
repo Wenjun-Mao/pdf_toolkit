@@ -11,6 +11,8 @@ from loguru import logger
 from ..auth import authenticate, clear_session_cookie, get_session_user, set_session_cookie
 from ..db import init_db
 from ..jobs import (
+    ActiveJobsError,
+    clear_jobs_and_artifacts,
     create_job,
     enqueue_extract_images,
     enqueue_extract_pages,
@@ -157,8 +159,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         clear_session_cookie(response)
         return response
 
-    @app.get("/", response_class=HTMLResponse)
-    async def home(request: Request):
+    def render_home_page(
+        request: Request,
+        *,
+        status_code: int = 200,
+        clear_jobs_error: str | None = None,
+    ) -> HTMLResponse:
         jobs = [serialize_job(job) for job in list_recent_jobs(settings=active_settings)]
         return templates.TemplateResponse(
             request,
@@ -167,8 +173,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "app_name": active_settings.app_name,
                 "tools": TOOL_REGISTRY,
                 "jobs": jobs,
+                "clear_jobs_error": clear_jobs_error,
             },
+            status_code=status_code,
         )
+
+    @app.get("/", response_class=HTMLResponse)
+    async def home(request: Request):
+        return render_home_page(request)
+
+    @app.post("/jobs/clear", response_class=HTMLResponse)
+    async def clear_recent_jobs(request: Request):
+        try:
+            clear_jobs_and_artifacts(active_settings)
+            return RedirectResponse("/", status_code=303)
+        except ActiveJobsError as exc:
+            return render_home_page(request, status_code=400, clear_jobs_error=str(exc))
+        except Exception as exc:
+            logger.exception("Recent jobs cleanup failed")
+            return render_home_page(request, status_code=400, clear_jobs_error=str(exc))
 
     @app.get("/tools/{tool_id}", response_class=HTMLResponse)
     async def tool_page(request: Request, tool_id: str):

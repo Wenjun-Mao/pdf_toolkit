@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import re
 import shutil
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Iterator
+from uuid import uuid4
 
 from fastapi import UploadFile
+from loguru import logger
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from .settings import Settings, get_settings
@@ -56,6 +59,90 @@ def job_contact_sheet_dir(job_id: str, settings: Settings | None = None) -> Path
     path = active_settings.contact_sheets_dir / job_id
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def job_storage_paths(job_id: str, settings: Settings | None = None) -> tuple[Path, ...]:
+    active_settings = settings or get_settings()
+    return (
+        active_settings.uploads_dir / job_id,
+        active_settings.results_dir / job_id,
+        active_settings.previews_dir / job_id,
+        active_settings.contact_sheets_dir / job_id,
+    )
+
+
+@contextmanager
+def staged_job_artifacts(
+    job_ids: Iterable[str],
+    settings: Settings | None = None,
+) -> Iterator[None]:
+    active_settings = settings or get_settings()
+    roots = (
+        active_settings.uploads_dir,
+        active_settings.results_dir,
+        active_settings.previews_dir,
+        active_settings.contact_sheets_dir,
+    )
+    cleanup_id = uuid4().hex
+    staged_paths: list[tuple[Path, Path]] = []
+    try:
+        for job_id in job_ids:
+            storage_paths = job_storage_paths(job_id, active_settings)
+            for root, source_path in zip(roots, storage_paths, strict=True):
+                if not source_path.exists():
+                    continue
+                staged_path = root / ".trash" / cleanup_id / job_id
+                _move_job_storage_path(root, source_path, staged_path)
+                staged_paths.append((source_path, staged_path))
+        yield
+    except Exception:
+        _restore_staged_job_artifacts(staged_paths)
+        raise
+    else:
+        for root in roots:
+            cleanup_dir = root / ".trash" / cleanup_id
+            try:
+                _remove_job_storage_path(root, cleanup_dir)
+            except OSError:
+                logger.exception("Could not purge staged job artifacts at {}", cleanup_dir)
+
+
+def _restore_staged_job_artifacts(staged_paths: list[tuple[Path, Path]]) -> None:
+    for original_path, staged_path in reversed(staged_paths):
+        if staged_path.exists():
+            _move_job_storage_path(original_path.parent, staged_path, original_path)
+
+
+@retry(
+    retry=retry_if_exception_type(OSError),
+    wait=wait_exponential(multiplier=0.2, min=0.2, max=2),
+    stop=stop_after_attempt(3),
+    reraise=True,
+)
+def _move_job_storage_path(root: Path, source: Path, destination: Path) -> None:
+    _validate_job_storage_path(root, source)
+    _validate_job_storage_path(root, destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    source.replace(destination)
+
+
+@retry(
+    retry=retry_if_exception_type(OSError),
+    wait=wait_exponential(multiplier=0.2, min=0.2, max=2),
+    stop=stop_after_attempt(3),
+    reraise=True,
+)
+def _remove_job_storage_path(root: Path, target: Path) -> None:
+    _validate_job_storage_path(root, target)
+    if target.exists():
+        shutil.rmtree(target)
+
+
+def _validate_job_storage_path(root: Path, target: Path) -> None:
+    root_path = root.resolve(strict=False)
+    target_path = target.resolve(strict=False)
+    if target_path == root_path or not target_path.is_relative_to(root_path):
+        raise ValueError(f"Refusing to access non-job storage path: {target_path}")
 
 
 @retry(

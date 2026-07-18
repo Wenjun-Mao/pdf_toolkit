@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from loguru import logger
+from sqlalchemy import text
 
 from .db import session_scope
 from .models import Job, JobStatus
@@ -26,8 +27,29 @@ from .storage import (
     build_result_path,
     job_preview_dir,
     job_result_dir,
+    staged_job_artifacts,
     zip_directory,
 )
+
+
+ACTIVE_JOB_STATUSES = frozenset(
+    {
+        JobStatus.QUEUED.value,
+        JobStatus.ANALYZING.value,
+        JobStatus.AWAITING_SETTINGS.value,
+        JobStatus.PROCESSING.value,
+    }
+)
+
+
+class ActiveJobsError(RuntimeError):
+    def __init__(self, active_count: int) -> None:
+        self.active_count = active_count
+        job_phrase = "job is" if active_count == 1 else "jobs are"
+        super().__init__(
+            f"Recent Jobs cannot be cleared while {active_count} {job_phrase} active. "
+            "Wait for active jobs to finish and try again."
+        )
 
 
 def create_job(
@@ -82,6 +104,32 @@ def list_recent_jobs(limit: int = 20, settings: Settings | None = None) -> list[
         for job in jobs:
             session.expunge(job)
         return jobs
+
+
+def clear_jobs_and_artifacts(settings: Settings | None = None) -> int:
+    active_settings = settings or get_settings()
+    with session_scope(active_settings) as session:
+        job_query = session.query(Job.id, Job.status)
+        if active_settings.database_url.startswith("sqlite"):
+            session.execute(text("BEGIN IMMEDIATE"))
+        else:
+            job_query = job_query.with_for_update()
+        job_rows = job_query.all()
+
+        active_count = sum(row.status in ACTIVE_JOB_STATUSES for row in job_rows)
+        if active_count:
+            raise ActiveJobsError(active_count)
+        job_ids = [row.id for row in job_rows]
+
+        if not job_ids:
+            return 0
+        with staged_job_artifacts(job_ids, active_settings):
+            cleared_count = session.query(Job).filter(Job.id.in_(job_ids)).delete(synchronize_session=False)
+            if cleared_count != len(job_ids):
+                raise RuntimeError("Recent Jobs changed during cleanup. No jobs were cleared.")
+            session.commit()
+    logger.info("Cleared {} jobs and their artifacts", cleared_count)
+    return cleared_count
 
 
 def enqueue_merge(job_id: str, settings: Settings | None = None):

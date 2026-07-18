@@ -22,7 +22,21 @@
 <section class="panel">
     <div class="section-header">
         <h2>Recent Jobs</h2>
+        {% if jobs %}
+            <form
+                action="/jobs/clear"
+                method="post"
+                onsubmit="return confirm('Clear all recent jobs and delete their generated files?')"
+            >
+                <button class="ghost-button mini-button" type="submit">Clear Recent Jobs</button>
+            </form>
+        {% endif %}
     </div>
+    {% if clear_jobs_error %}
+        {% with message=clear_jobs_error, kind="error" %}
+            {% include "partials/notice.html" %}
+        {% endwith %}
+    {% endif %}
     {% if jobs %}
         <div class="job-stack">
             {% for job in jobs %}
