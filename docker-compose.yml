@@ -12,9 +12,19 @@ services:
       PDFKIT_HOST: 0.0.0.0
       PDFKIT_PORT: 8000
     ports:
-      - "8100:8000"
+      - "127.0.0.1:8100:8000"
+    labels:
+      dev.orbstack.http-port: "8000"
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     volumes:
       - pdfkit_data:/app/data
     secrets:
@@ -31,7 +41,9 @@ services:
       PDFKIT_REDIS_URL: redis://redis:6379/0
       PDFKIT_DATABASE_URL: sqlite:///data/pdfkit.db
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
     volumes:
       - pdfkit_data:/app/data
     secrets:
@@ -41,8 +53,13 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
 
 volumes:
   pdfkit_data:
