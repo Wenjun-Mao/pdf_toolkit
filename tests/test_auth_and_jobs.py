@@ -84,26 +84,26 @@ def test_login_optional_redirects_login_page_to_home(open_app_client) -> None:
     assert response.headers["location"] == "/"
 
 
-def test_merge_submission_completes_without_login(open_app_client, sample_merge_pdfs: list[Path]) -> None:
+def test_merge_upload_allows_review_without_login(open_app_client, sample_merge_pdfs: list[Path]) -> None:
     files = [
         ("files", (sample_merge_pdfs[0].name, sample_merge_pdfs[0].read_bytes(), "application/pdf")),
         ("files", (sample_merge_pdfs[1].name, sample_merge_pdfs[1].read_bytes(), "application/pdf")),
     ]
-    response = open_app_client.post("/tools/merge/submit", files=files)
+    response = open_app_client.post("/tools/merge/upload", files=files)
 
     assert response.status_code == 200
-    assert "Download merged.pdf" in response.text
+    assert "Set Merge Order" in response.text
 
 
-def test_merge_submission_completes_inline(app_client, sample_merge_pdfs: list[Path]) -> None:
+def test_merge_upload_allows_review_with_login(app_client, sample_merge_pdfs: list[Path]) -> None:
     files = [
         ("files", (sample_merge_pdfs[0].name, sample_merge_pdfs[0].read_bytes(), "application/pdf")),
         ("files", (sample_merge_pdfs[1].name, sample_merge_pdfs[1].read_bytes(), "application/pdf")),
     ]
-    response = app_client.post("/tools/merge/submit", files=files)
+    response = app_client.post("/tools/merge/upload", files=files)
 
     assert response.status_code == 200
-    assert "Download merged.pdf" in response.text
+    assert "Set Merge Order" in response.text
 
 
 def test_images_to_pdf_submission_completes_inline(app_client, sample_image_inputs: list[Path]) -> None:

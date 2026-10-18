@@ -1,0 +1,62 @@
+<form
+    class="stacked-form"
+    hx-post="/tools/merge/{{ job_id }}/submit"
+    hx-target="#job-panel"
+    hx-swap="innerHTML"
+    x-data="{
+        renumber() {
+            this.$root.querySelectorAll('.order-index').forEach((element, index) => {
+                element.textContent = index + 1;
+            });
+        },
+        moveRow(button, direction) {
+            const row = button.closest('.order-row');
+            const sibling = direction < 0 ? row.previousElementSibling : row.nextElementSibling;
+            if (!sibling) {
+                return;
+            }
+            if (direction < 0) {
+                row.parentNode.insertBefore(row, sibling);
+            } else {
+                row.parentNode.insertBefore(sibling, row);
+            }
+            this.renumber();
+        }
+    }"
+>
+    <div class="section-header">
+        <h2>Set Merge Order</h2>
+        <p class="muted">Move whole PDFs into the order you want before fusing them.</p>
+    </div>
+
+    <div class="order-list">
+        {% for item in items %}
+            <div class="order-row" data-ordered-file-id="{{ item.id }}">
+                <input type="hidden" name="ordered_file_ids" value="{{ item.id }}">
+                <span class="order-index">{{ loop.index }}</span>
+                <div class="order-meta">
+                    <strong>{{ item.name }}</strong>
+                    <span>{{ item.kind }}</span>
+                </div>
+                <div class="order-actions">
+                    <button
+                        class="ghost-button mini-button"
+                        type="button"
+                        @click="moveRow($el, -1)"
+                    >
+                        Up
+                    </button>
+                    <button
+                        class="ghost-button mini-button"
+                        type="button"
+                        @click="moveRow($el, 1)"
+                    >
+                        Down
+                    </button>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <button class="primary-button" type="submit">Fuse PDFs</button>
+</form>

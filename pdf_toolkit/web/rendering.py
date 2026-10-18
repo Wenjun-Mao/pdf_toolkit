@@ -31,7 +31,13 @@ def serialize_job(job: Job, settings: Settings | None = None) -> dict:
         },
         "awaiting_settings": awaiting_settings,
         "awaiting_scan_settings": awaiting_settings and job.tool_name == "scan-cleanup-analysis",
+        "awaiting_page_organization": awaiting_settings and job.tool_name == "organize-pages",
     }
+    if job.tool_name == "organize-pages":
+        payload["organizer"] = {
+            "page_count": (job.artifact_json or {}).get("page_count", 0),
+            "source_name": (job.artifact_json or {}).get("source_name", "document.pdf"),
+        }
     analysis = (job.artifact_json or {}).get("analysis")
     if analysis:
         payload["analysis"] = {
@@ -72,6 +78,8 @@ def render_job_card(
         if serialized_job.get("awaiting_scan_settings") and serialized_job.get("analysis")
         else "partials/job_card.html"
     )
+    if serialized_job.get("awaiting_page_organization"):
+        template_name = "partials/organize_pages_editor.html"
     return templates.TemplateResponse(
         request,
         template_name,

@@ -19,6 +19,7 @@ from .pdf_ops import (
     images_to_pdf,
     merge_pdfs,
     mixed_files_to_pdf,
+    organize_pdf_pages,
     split_pdf,
 )
 from .queueing import dispatch_job
@@ -137,6 +138,10 @@ def enqueue_merge(job_id: str, settings: Settings | None = None):
     return dispatch_job(run_merge_job, job_id, settings=active_settings)
 
 
+def enqueue_organize_pages(job_id: str, settings: Settings | None = None):
+    return dispatch_job(run_organize_pages_job, job_id, settings=settings or get_settings())
+
+
 def enqueue_split(job_id: str, settings: Settings | None = None):
     active_settings = settings or get_settings()
     return dispatch_job(run_split_job, job_id, settings=active_settings)
@@ -179,6 +184,10 @@ def enqueue_scan_process(job_id: str, settings: Settings | None = None):
 
 def run_merge_job(job_id: str) -> str:
     return _run_job(job_id, JobStatus.PROCESSING, _merge_job_impl)
+
+
+def run_organize_pages_job(job_id: str) -> str:
+    return _run_job(job_id, JobStatus.PROCESSING, _organize_pages_job_impl)
 
 
 def run_split_job(job_id: str) -> str:
@@ -262,6 +271,12 @@ def _merge_job_impl(job: Job) -> Path:
     output_path = build_result_path(job.id, "merged.pdf")
     merge_pdfs([Path(path) for path in job.input_paths], output_path)
     return output_path
+
+
+def _organize_pages_job_impl(job: Job) -> Path:
+    return organize_pdf_pages(
+        Path(job.input_paths[0]), job.params_json["page_numbers"], build_result_path(job.id, "organized.pdf"),
+    )
 
 
 def _split_job_impl(job: Job) -> Path:

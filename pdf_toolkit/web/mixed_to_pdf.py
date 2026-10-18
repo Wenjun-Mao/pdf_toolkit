@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 import fitz
@@ -15,9 +14,8 @@ from ..models import Job, JobStatus
 from ..pdf_ops.mixed_to_pdf import classify_mixed_input
 from ..settings import Settings
 from ..storage import persist_uploads
+from .file_ordering import build_ordered_file_item, resolve_ordered_paths
 from .rendering import render_job_card, render_notice
-
-UPLOAD_PREFIX_PATTERN = re.compile(r"^\d{2}-")
 
 
 def register_mixed_to_pdf_routes(
@@ -85,7 +83,7 @@ def register_mixed_to_pdf_routes(
             )
 
         try:
-            ordered_paths = _resolve_ordered_paths(job, ordered_file_ids or [])
+            ordered_paths = resolve_ordered_paths(job.input_paths, ordered_file_ids or [])
             update_job_fields(
                 job.id,
                 active_settings,
@@ -124,20 +122,7 @@ def _render_review(
 
 def _build_review_item(path: Path) -> dict[str, str]:
     input_kind = classify_mixed_input(path)
-    return {
-        "id": path.name,
-        "name": UPLOAD_PREFIX_PATTERN.sub("", path.name),
-        "kind": "PDF" if input_kind == "pdf" else "Image",
-    }
-
-
-def _resolve_ordered_paths(job: Job, ordered_file_ids: list[str]) -> list[Path]:
-    path_by_id = {Path(path).name: Path(path) for path in job.input_paths}
-    if len(path_by_id) != len(job.input_paths):
-        raise ValueError("Uploaded files have duplicate IDs.")
-    if len(ordered_file_ids) != len(path_by_id) or set(ordered_file_ids) != set(path_by_id):
-        raise ValueError("Submitted file order does not match uploaded files.")
-    return [path_by_id[file_id] for file_id in ordered_file_ids]
+    return build_ordered_file_item(path, "PDF" if input_kind == "pdf" else "Image")
 
 
 def _validate_mixed_upload(path: Path) -> None:

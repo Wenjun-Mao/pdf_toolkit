@@ -6,8 +6,10 @@
     <title>{{ app_name }}</title>
     <link rel="stylesheet" href="/static/app.css">
     <link rel="stylesheet" href="/static/scan_cleanup.css">
+    <link rel="stylesheet" href="/static/organize_pages.css">
     <script defer src="https://unpkg.com/htmx.org@2.0.4"></script>
     <script defer src="/static/scan_cleanup.js"></script>
+    <script defer src="/static/organize_pages.js"></script>
     <script>
         document.addEventListener("alpine:init", () => {
             Alpine.data("scanCleanupReview", () => ({

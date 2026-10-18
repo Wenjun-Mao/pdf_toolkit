@@ -22,6 +22,7 @@ class JobStatus(StrEnum):
     AWAITING_SETTINGS = "awaiting_settings"
     PROCESSING = "processing"
     COMPLETED = "completed"
+    CANCELLED = "cancelled"
     FAILED = "failed"
     EXPIRED = "expired"
 

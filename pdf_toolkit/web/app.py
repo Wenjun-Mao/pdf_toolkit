@@ -18,7 +18,6 @@ from ..jobs import (
     enqueue_extract_pages,
     enqueue_id_halves_to_pdf,
     enqueue_images_to_pdf,
-    enqueue_merge,
     enqueue_scan_analysis,
     enqueue_scan_process,
     enqueue_split,
@@ -29,7 +28,9 @@ from ..jobs import (
 from ..logging import configure_logging
 from ..settings import Settings, get_settings
 from ..storage import ensure_storage_dirs, persist_uploads
+from .merge import register_merge_routes
 from .mixed_to_pdf import register_mixed_to_pdf_routes
+from .organize_pages import register_organize_pages_routes
 from .rendering import render_job_card, render_notice, serialize_job
 from .scan_cleanup_forms import parse_page_overrides, parse_scan_defaults
 from .scan_cleanup_preview import register_scan_cleanup_preview_routes
@@ -49,6 +50,11 @@ TOOL_REGISTRY = {
         "title": "Split PDF",
         "description": "Slice one PDF into several outputs by explicit groups or every N pages.",
         "form_template": "partials/forms/split.html",
+    },
+    "organize-pages": {
+        "title": "Organize Pages",
+        "description": "Rearrange PDF pages, remove the ones you don't need, and save a new PDF.",
+        "form_template": "partials/forms/organize_pages.html",
     },
     "extract-pages": {
         "title": "Extract Pages",
@@ -81,6 +87,7 @@ TOOL_NAV_ITEMS = [
     ("merge", "Merge"),
     ("mixed-to-pdf", "Mixed to PDF"),
     ("split", "Split"),
+    ("organize-pages", "Organize Pages"),
     ("extract-pages", "Extract Pages"),
     ("extract-images", "Extract Images"),
     ("id-halves-to-pdf", "ID Halves"),
@@ -99,7 +106,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     templates.env.globals["require_login"] = active_settings.require_login
     templates.env.globals["tool_nav_items"] = TOOL_NAV_ITEMS
     app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
+    register_merge_routes(app, templates, active_settings)
     register_mixed_to_pdf_routes(app, templates, active_settings)
+    register_organize_pages_routes(app, templates, active_settings)
     register_scan_cleanup_preview_routes(app, templates, active_settings)
 
     @app.middleware("http")
@@ -207,20 +216,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "tool": tool,
             },
         )
-
-    @app.post("/tools/merge/submit", response_class=HTMLResponse)
-    async def merge_submit(request: Request, files: list[UploadFile] = File(...)):
-        try:
-            if len(files) < 2:
-                raise ValueError("Select at least two PDF files to merge.")
-            job = create_job("merge", "Merge PDFs", [], settings=active_settings)
-            stored_paths = await persist_uploads(job.id, files, active_settings)
-            update_job_fields(job.id, active_settings, input_paths=[str(path) for path in stored_paths])
-            enqueue_merge(job.id, active_settings)
-            return render_job_card(request, templates, job.id, active_settings)
-        except Exception as exc:
-            logger.exception("Merge submission failed")
-            return render_notice(request, templates, str(exc), status_code=400)
 
     @app.post("/tools/split/submit", response_class=HTMLResponse)
     async def split_submit(

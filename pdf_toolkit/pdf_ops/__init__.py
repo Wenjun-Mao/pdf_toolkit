@@ -3,6 +3,7 @@ from .id_halves_to_pdf import id_halves_to_pdf
 from .images_to_pdf import images_to_pdf
 from .merge import merge_pdfs
 from .mixed_to_pdf import mixed_files_to_pdf
+from .organize_pages import organize_pdf_pages
 from .ranges import parse_page_range_spec, parse_split_range_groups
 from .scan_cleanup import (
     CleanupSettings,
@@ -29,6 +30,7 @@ __all__ = [
     "images_to_pdf",
     "merge_pdfs",
     "mixed_files_to_pdf",
+    "organize_pdf_pages",
     "parse_page_range_spec",
     "parse_split_range_groups",
     "render_cleaned_page_preview",

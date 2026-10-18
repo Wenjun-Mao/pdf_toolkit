@@ -4,12 +4,19 @@
 <section class="panel">
     <a class="mini-link" href="/">Back to home</a>
     <h1>{{ job.display_name }}</h1>
-    {% include "partials/job_card.html" %}
+    {% if not job.awaiting_page_organization %}
+        {% include "partials/job_card.html" %}
+    {% endif %}
 </section>
 
 {% if job.awaiting_settings and job.analysis %}
     <section class="panel" x-data="scanCleanupReview">
         {% include "partials/scan_cleanup_review_body.html" %}
+    </section>
+{% endif %}
+{% if job.awaiting_page_organization %}
+    <section class="panel" id="job-panel">
+        {% include "partials/organize_pages_editor.html" %}
     </section>
 {% endif %}
 {% endblock %}

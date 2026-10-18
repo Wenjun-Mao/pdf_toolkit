@@ -10,6 +10,7 @@ Single-user PDF utility app built with FastAPI, HTMX, Redis/RQ, SQLite, and PyMu
 - Build one PDF page from top half of image 1 and bottom half of image 2
 - Split one PDF by explicit ranges or every N pages
 - Extract selected pages into a new PDF
+- Visually organize a PDF: reorder page thumbnails, delete selected pages, and save a new PDF
 - Export embedded images directly from PDFs
 - Analyze and clean scanned-page backgrounds while preserving existing OCR/text layers
 - Run through the web UI, the CLI, or a Jupyter notebook

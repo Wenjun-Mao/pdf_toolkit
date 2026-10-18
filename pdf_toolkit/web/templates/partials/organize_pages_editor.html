@@ -1,0 +1,63 @@
+{% from 'partials/organizer_icon.html' import icon %}
+<form class="page-organizer" x-data="pageOrganizer" data-job-id="{{ job.id }}" data-page-count="{{ job.organizer.page_count }}" @submit.prevent="save()" :aria-busy="busy">
+    <header class="organizer-heading">
+        <div>
+            <h2>{{ job.organizer.source_name }}</h2>
+            <p class="muted" aria-live="polite"><span x-text="pages.length">{{ job.organizer.page_count }}</span> of {{ job.organizer.page_count }} pages kept<span x-show="selected.length" x-cloak> · <span x-text="selected.length"></span> selected</span></p>
+        </div>
+        <button type="submit" class="primary-button organizer-command" :disabled="busy || !pages.length">
+            {{ icon('save') }}<span x-text="busy ? 'Saving…' : 'Save PDF'">Save PDF</span>
+        </button>
+    </header>
+
+    <div class="organizer-toolbar" role="group" aria-label="Page actions">
+        <label class="organizer-select-all">
+            <input type="checkbox" :checked="pages.length > 0 && selected.length === pages.length" x-effect="$el.indeterminate = selected.length > 0 && selected.length < pages.length" @change="selectAll($event.target.checked)" :disabled="busy || !pages.length">
+            Select all
+        </label>
+        <button type="button" class="ghost-button organizer-command" @click="remove(selected)" :disabled="busy || !selected.length">{{ icon('delete') }} Delete selected</button>
+        <div class="organizer-history">
+            <button type="button" class="ghost-button organizer-icon-button" @click="undo()" :disabled="busy || !history.length" title="Undo last change" aria-label="Undo last change">{{ icon('undo') }}</button>
+            <button type="button" class="ghost-button organizer-icon-button" @click="reset()" :disabled="busy || !changed" title="Restore original pages and order" aria-label="Restore original pages and order">{{ icon('reset') }}</button>
+        </div>
+    </div>
+
+    <p class="notice error" x-show="error" x-text="error" x-cloak role="alert"></p>
+    <p class="organizer-empty muted" x-show="!pages.length" x-cloak>Keep at least one page to save. Undo or restore the original pages.</p>
+
+    <div class="organizer-grid" role="list" aria-label="Pages in output order">
+        <template x-for="(page, index) in pages" :key="page">
+            <article class="organizer-page" role="listitem" :class="{ 'is-selected': selected.includes(page), 'is-drag-target': dragTarget === page }" :data-source-page="page" draggable="true" @dragstart="startDrag($event, page)" @dragend="dragged = null; dragTarget = null" @dragover.prevent="dragTarget = page" @dragleave="dragTarget = null" @drop.prevent="drop(page)">
+                <div class="organizer-page-heading">
+                    <label>
+                        <input type="checkbox" :value="page" x-model.number="selected" :aria-label="'Select source page ' + page" :disabled="busy">
+                        <span class="organizer-position" x-text="index + 1"></span>
+                    </label>
+                    <span class="muted">Source p. <span x-text="page"></span></span>
+                </div>
+                <button type="button" class="organizer-thumbnail" @click="openPreview(page)" :aria-label="'Preview source page ' + page" title="Enlarge page">
+                    <img :src="imageUrl(page)" :alt="'Source page ' + page" loading="lazy" decoding="async" draggable="false" @error="$el.hidden = true; $el.nextElementSibling.hidden = false">
+                    <span hidden>Preview unavailable</span>
+                </button>
+                <div class="organizer-page-actions">
+                    <button type="button" class="ghost-button organizer-icon-button" @click="move(page, index - 1)" :disabled="busy || index === 0" :aria-label="'Move source page ' + page + ' earlier'" title="Move earlier">{{ icon('left') }}</button>
+                    <button type="button" class="ghost-button organizer-icon-button" @click="move(page, index + 1)" :disabled="busy || index === pages.length - 1" :aria-label="'Move source page ' + page + ' later'" title="Move later">{{ icon('right') }}</button>
+                    <button type="button" class="ghost-button organizer-icon-button organizer-delete" @click="remove([page])" :disabled="busy" :aria-label="'Delete source page ' + page" title="Delete page">{{ icon('delete') }}</button>
+                </div>
+            </article>
+        </template>
+    </div>
+
+    <footer class="organizer-footer">
+        <button type="button" class="ghost-button" @click="cancel()" :disabled="busy">Cancel editing</button>
+        <span class="muted">{{ job.organizer.page_count }} original pages</span>
+    </footer>
+
+    <dialog x-ref="preview" class="organizer-preview" aria-labelledby="organizer-preview-title" @click="if ($event.target === $refs.preview) $refs.preview.close()">
+        <div class="organizer-preview-heading">
+            <h3 id="organizer-preview-title">Source page <span x-text="previewPage"></span></h3>
+            <button type="button" class="ghost-button organizer-icon-button" @click="$refs.preview.close()" title="Close preview" aria-label="Close preview">{{ icon('close') }}</button>
+        </div>
+        <img x-show="previewPage" :src="previewPage ? imageUrl(previewPage, 'preview') : null" :alt="'Source page ' + previewPage">
+    </dialog>
+</form>
